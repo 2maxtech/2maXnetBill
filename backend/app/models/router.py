@@ -16,6 +16,8 @@ class Router(BaseModel):
     password: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    maintenance_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     areas = relationship("Area", back_populates="router", lazy="selectin")
 

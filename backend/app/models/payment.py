@@ -14,6 +14,8 @@ class PaymentMethod(str, enum.Enum):
     cash = "cash"
     bank = "bank"
     online = "online"
+    gcash = "gcash"
+    maya = "maya"
 
 
 class Payment(BaseModel):

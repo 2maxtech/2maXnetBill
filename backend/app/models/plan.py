@@ -15,3 +15,6 @@ class Plan(BaseModel):
     monthly_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    data_cap_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fup_download_mbps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fup_upload_mbps: Mapped[int | None] = mapped_column(Integer, nullable=True)
