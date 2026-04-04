@@ -5,7 +5,7 @@ const SystemStatus = () => {
     <div>
       <Typography.Title level={4}>System Status</Typography.Title>
       <Card>
-        <Typography.Text type="secondary">Kerio Control integration pending. System metrics will be available once the Kerio adapter is connected.</Typography.Text>
+        <Typography.Text type="secondary">MikroTik integration active. System metrics are available via the network status endpoint.</Typography.Text>
       </Card>
     </div>
   );

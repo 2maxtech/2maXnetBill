@@ -22,7 +22,7 @@ const Dashboard = () => {
   const trafficChartOption = {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#1e293b',
+      backgroundColor: '#3d2a0a',
       borderColor: 'rgba(255,255,255,0.1)',
       textStyle: { color: '#e2e8f0' },
     },
@@ -46,9 +46,9 @@ const Dashboard = () => {
         name: 'Download',
         type: 'line',
         smooth: true,
-        areaStyle: { opacity: 0.15, color: '#0d9488' },
+        areaStyle: { opacity: 0.15, color: '#e8700a' },
         data: [20, 15, 30, 65, 80, 55, 35],
-        itemStyle: { color: '#0d9488' },
+        itemStyle: { color: '#e8700a' },
         lineStyle: { width: 2 },
         symbol: 'circle',
         symbolSize: 4,
@@ -57,9 +57,9 @@ const Dashboard = () => {
         name: 'Upload',
         type: 'line',
         smooth: true,
-        areaStyle: { opacity: 0.15, color: '#06b6d4' },
+        areaStyle: { opacity: 0.15, color: '#f9a825' },
         data: [5, 3, 8, 15, 20, 12, 8],
-        itemStyle: { color: '#06b6d4' },
+        itemStyle: { color: '#f9a825' },
         lineStyle: { width: 2 },
         symbol: 'circle',
         symbolSize: 4,
@@ -74,7 +74,7 @@ const Dashboard = () => {
     <div>
       {/* Welcome Banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        background: 'linear-gradient(135deg, #1c1306 0%, #3d2a0a 100%)',
         borderRadius: 12,
         padding: '20px 28px',
         marginBottom: 24,
@@ -120,7 +120,7 @@ const Dashboard = () => {
             title="Monthly Revenue"
             value="--"
             prefix={<DollarOutlined />}
-            valueStyle={{ color: '#0d9488' }}
+            valueStyle={{ color: '#e8700a' }}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -138,12 +138,12 @@ const Dashboard = () => {
         <Col xs={24} lg={16}>
           <Card
             title={
-              <span style={{ color: '#0f172a', fontWeight: 600 }}>Network Traffic</span>
+              <span style={{ color: '#1c1306', fontWeight: 600 }}>Network Traffic</span>
             }
             extra={
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#94a3b8' }}>
-                <span><ArrowDownOutlined style={{ color: '#0d9488' }} /> Download</span>
-                <span><ArrowUpOutlined style={{ color: '#06b6d4' }} /> Upload</span>
+                <span><ArrowDownOutlined style={{ color: '#e8700a' }} /> Download</span>
+                <span><ArrowUpOutlined style={{ color: '#f9a825' }} /> Upload</span>
               </div>
             }
             style={{ borderRadius: 12 }}
@@ -156,7 +156,7 @@ const Dashboard = () => {
         {/* System Health */}
         <Col xs={24} lg={8}>
           <Card
-            title={<span style={{ color: '#0f172a', fontWeight: 600 }}>System Health</span>}
+            title={<span style={{ color: '#1c1306', fontWeight: 600 }}>System Health</span>}
             style={{ borderRadius: 12, height: '100%' }}
             styles={{ header: { borderBottom: '1px solid #f1f5f9' } }}
           >
@@ -202,7 +202,7 @@ const Dashboard = () => {
                 border: '1px solid #e2e8f0',
               }}>
                 <Typography.Text style={{ color: '#94a3b8', fontSize: 12 }}>
-                  Kerio Control integration active. Live stats available in Active Users.
+                  MikroTik integration active. Live PPPoE stats available in Active Users.
                 </Typography.Text>
               </div>
             </div>
