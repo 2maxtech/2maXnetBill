@@ -167,7 +167,7 @@ async def test_auto_reconnect_on_full_payment(db_session: AsyncSession, customer
         method=PaymentMethod.bank,
         reference="REF123",
         received_by=None,
-        skip_gateway=True,
+        skip_network=True,
     )
 
     await db_session.refresh(customer)
@@ -219,7 +219,7 @@ async def test_graduated_disconnect_throttle(db_session: AsyncSession, customer:
     db_session.add(inv)
     await db_session.commit()
 
-    result = await process_graduated_disconnect(db_session, skip_gateway=True)
+    result = await process_graduated_disconnect(db_session, skip_network=True)
     assert result["throttled"] == 1
 
     await db_session.refresh(customer)
@@ -244,7 +244,7 @@ async def test_graduated_disconnect_disconnect(db_session: AsyncSession, custome
     db_session.add(inv)
     await db_session.commit()
 
-    result = await process_graduated_disconnect(db_session, skip_gateway=True)
+    result = await process_graduated_disconnect(db_session, skip_network=True)
     assert result["disconnected"] == 1
 
     await db_session.refresh(customer)
@@ -269,7 +269,7 @@ async def test_graduated_disconnect_idempotent(db_session: AsyncSession, custome
     db_session.add(inv)
     await db_session.commit()
 
-    result = await process_graduated_disconnect(db_session, skip_gateway=True)
+    result = await process_graduated_disconnect(db_session, skip_network=True)
     assert result["throttled"] == 0
     assert result["disconnected"] == 0
 
