@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin.customers import router as customers_router
 from app.api.admin.plans import router as plans_router
+from app.api.admin.billing import router as billing_router
 from app.api.admin.pppoe import router as pppoe_router
 from app.api.admin.users import router as users_router
 from app.api.auth import router as auth_router
@@ -24,6 +25,7 @@ app.include_router(plans_router, prefix=settings.API_V1_PREFIX)
 app.include_router(customers_router, prefix=settings.API_V1_PREFIX)
 app.include_router(users_router, prefix=settings.API_V1_PREFIX)
 app.include_router(pppoe_router, prefix=settings.API_V1_PREFIX)
+app.include_router(billing_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health")
