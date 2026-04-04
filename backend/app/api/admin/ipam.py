@@ -56,6 +56,32 @@ async def create_pool(
     return pool
 
 
+@router.put("/pools/{pool_id}")
+async def update_pool(
+    pool_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update an existing IP pool."""
+    result = await db.execute(select(IPPool).where(IPPool.id == pool_id))
+    pool = result.scalar_one_or_none()
+    if pool is None:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    for field in ["name", "range_start", "range_end", "subnet", "router_id"]:
+        if field in body:
+            setattr(pool, field, body[field])
+    await db.flush()
+    await db.refresh(pool)
+    return {
+        "id": str(pool.id),
+        "name": pool.name,
+        "range_start": pool.range_start,
+        "range_end": pool.range_end,
+        "subnet": pool.subnet,
+    }
+
+
 @router.delete("/pools/{pool_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_pool(
     pool_id: uuid.UUID,

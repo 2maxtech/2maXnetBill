@@ -16,6 +16,7 @@ from app.models.payment import Payment
 from app.models.pppoe_session import PPPoESession
 from app.models.bandwidth_usage import BandwidthUsage
 from app.models.customer_activity import CustomerActivity
+from app.models.ticket import Ticket, TicketMessage
 from app.services.pdf import generate_invoice_pdf
 
 from jose import jwt, JWTError
@@ -294,3 +295,130 @@ async def portal_sessions(
         }
         for s in sessions
     ]
+
+
+# --- Tickets ---
+
+@router.get("/tickets")
+async def portal_get_tickets(
+    db: AsyncSession = Depends(get_db),
+    customer: Customer = Depends(get_portal_customer),
+):
+    result = await db.execute(
+        select(Ticket).where(Ticket.customer_id == customer.id).order_by(Ticket.created_at.desc())
+    )
+    tickets = result.scalars().all()
+    return [
+        {
+            "id": str(t.id),
+            "subject": t.subject,
+            "status": t.status.value,
+            "priority": t.priority.value,
+            "created_at": t.created_at.isoformat(),
+            "resolved_at": t.resolved_at.isoformat() if t.resolved_at else None,
+        }
+        for t in tickets
+    ]
+
+
+@router.post("/tickets")
+async def portal_create_ticket(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    customer: Customer = Depends(get_portal_customer),
+):
+    ticket = Ticket(
+        customer_id=customer.id,
+        subject=body["subject"],
+        priority=body.get("priority", "medium"),
+    )
+    db.add(ticket)
+    await db.flush()
+    await db.refresh(ticket)
+    msg = TicketMessage(
+        ticket_id=ticket.id,
+        sender_type="customer",
+        sender_id=customer.id,
+        message=body["message"],
+    )
+    db.add(msg)
+    await db.flush()
+    await db.refresh(ticket)
+    return {
+        "id": str(ticket.id),
+        "subject": ticket.subject,
+        "status": ticket.status.value,
+        "priority": ticket.priority.value,
+        "created_at": ticket.created_at.isoformat(),
+    }
+
+
+@router.get("/tickets/{ticket_id}")
+async def portal_get_ticket(
+    ticket_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    customer: Customer = Depends(get_portal_customer),
+):
+    result = await db.execute(
+        select(Ticket).where(Ticket.id == ticket_id, Ticket.customer_id == customer.id)
+    )
+    ticket = result.scalar_one_or_none()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return {
+        "id": str(ticket.id),
+        "subject": ticket.subject,
+        "status": ticket.status.value,
+        "priority": ticket.priority.value,
+        "created_at": ticket.created_at.isoformat(),
+        "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+        "messages": [
+            {
+                "id": str(m.id),
+                "sender_type": m.sender_type,
+                "message": m.message,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in (ticket.messages or [])
+        ],
+    }
+
+
+@router.post("/tickets/{ticket_id}/messages")
+async def portal_add_message(
+    ticket_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    customer: Customer = Depends(get_portal_customer),
+):
+    result = await db.execute(
+        select(Ticket).where(Ticket.id == ticket_id, Ticket.customer_id == customer.id)
+    )
+    ticket = result.scalar_one_or_none()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    msg = TicketMessage(
+        ticket_id=ticket.id,
+        sender_type="customer",
+        sender_id=customer.id,
+        message=body["message"],
+    )
+    db.add(msg)
+    await db.flush()
+    await db.refresh(ticket)
+    return {
+        "id": str(ticket.id),
+        "subject": ticket.subject,
+        "status": ticket.status.value,
+        "priority": ticket.priority.value,
+        "created_at": ticket.created_at.isoformat(),
+        "messages": [
+            {
+                "id": str(m.id),
+                "sender_type": m.sender_type,
+                "message": m.message,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in (ticket.messages or [])
+        ],
+    }

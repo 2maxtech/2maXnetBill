@@ -98,3 +98,52 @@ async def test_smtp(
     except Exception as e:
         logger.error(f"SMTP test failed: {e}")
         raise HTTPException(status_code=502, detail=f"SMTP error: {e}")
+
+
+@router.get("/sms")
+async def get_sms(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Get SMS settings (api_key masked)."""
+    result = await db.execute(select(AppSetting).where(AppSetting.key.like("sms_%")))
+    sms = {s.key: s.value for s in result.scalars().all()}
+    return {
+        "provider": sms.get("sms_provider", ""),
+        "api_key": "***" if sms.get("sms_api_key") else "",
+        "sender_name": sms.get("sms_sender_name", ""),
+    }
+
+
+@router.put("/sms")
+async def update_sms(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Save SMS settings."""
+    mapping = {
+        "provider": "sms_provider",
+        "api_key": "sms_api_key",
+        "sender_name": "sms_sender_name",
+    }
+    for field, key in mapping.items():
+        if field in body:
+            await save_setting(db, key, str(body[field]))
+    await db.flush()
+    return {"status": "saved"}
+
+
+@router.post("/sms/test")
+async def test_sms_endpoint(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Send a test SMS using stored SMS settings."""
+    from app.services.sms import send_sms
+    phone = body.get("phone", "")
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone required")
+    success = await send_sms(phone, "NetLedger SMS test", db)
+    return {"success": success}
