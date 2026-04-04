@@ -31,5 +31,13 @@ class Customer(BaseModel):
     mikrotik_secret_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     mikrotik_queue_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     mac_address: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    router_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("routers.id"), nullable=True
+    )
+    area_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("areas.id"), nullable=True
+    )
 
     plan = relationship("Plan", lazy="selectin")
+    router = relationship("Router", lazy="selectin")
+    area = relationship("Area", lazy="selectin")

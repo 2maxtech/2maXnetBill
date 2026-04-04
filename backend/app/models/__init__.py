@@ -9,4 +9,5 @@ from app.models.payment import Payment  # noqa: F401
 from app.models.plan import Plan  # noqa: F401
 from app.models.pppoe_session import PPPoESession  # noqa: F401
 from app.models.session_traffic import SessionTraffic  # noqa: F401
+from app.models.router import Area, Router  # noqa: F401
 from app.models.user import User  # noqa: F401
