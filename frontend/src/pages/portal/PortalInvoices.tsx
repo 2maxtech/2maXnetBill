@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Typography, Table, Button, message, Space } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined, WifiOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DownloadOutlined, WifiOutlined, PrinterOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import StatusTag from '../../components/StatusTag';
@@ -26,8 +26,15 @@ const PortalInvoices = () => {
     {
       title: '',
       key: 'actions',
-      width: 80,
+      width: 120,
       render: (_: unknown, r: PortalInvoice) => (
+        <Space size="small">
+        <Button
+          type="link"
+          size="small"
+          icon={<PrinterOutlined />}
+          onClick={() => window.open(`/api/v1/portal/invoices/${r.id}/pdf`, '_blank')}
+        />
         <Button
           type="link"
           size="small"
@@ -46,6 +53,7 @@ const PortalInvoices = () => {
         >
           PDF
         </Button>
+        </Space>
       ),
     },
   ];

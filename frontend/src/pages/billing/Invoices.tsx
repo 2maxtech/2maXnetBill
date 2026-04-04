@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Card, Typography, Select, Space, Button, message, DatePicker, Popconfirm } from 'antd';
-import { PlusOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StatusTag from '../../components/StatusTag';
 import { getInvoices, generateInvoices, updateInvoice, downloadInvoicePdf } from '../../api/billing';
@@ -85,7 +85,7 @@ const Invoices = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 130,
+      width: 160,
       render: (_: unknown, r: Invoice) => (
         <Space size="small">
           <Button
@@ -106,6 +106,12 @@ const Invoices = () => {
           >
             PDF
           </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => window.open(`/api/v1/billing/invoices/${r.id}/pdf`, '_blank')}
+          />
           {r.status !== 'void' && r.status !== 'paid' ? (
             <Popconfirm title="Void this invoice?" onConfirm={() => voidMut.mutate(r.id)}>
               <Button type="link" size="small" danger>Void</Button>

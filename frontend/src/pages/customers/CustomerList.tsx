@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Card, Input, Select, Button, Space, Modal, Form, Typography, message } from 'antd';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, KeyOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCustomers, createCustomer } from '../../api/customers';
 import { getPlans } from '../../api/plans';
 import StatusTag from '../../components/StatusTag';
 import dayjs from 'dayjs';
+
+const generatePassword = () => {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+};
 
 const CustomerList = () => {
   const navigate = useNavigate();
@@ -81,7 +86,20 @@ const CustomerList = () => {
           <Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="address" label="Address"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="pppoe_username" label="PPPoE Username" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="pppoe_password" label="PPPoE Password" rules={[{ required: true }]}><Input.Password /></Form.Item>
+          <Form.Item name="pppoe_password" label="PPPoE Password" rules={[{ required: true }]}>
+            <Input.Password
+              addonAfter={
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<KeyOutlined />}
+                  onClick={() => form.setFieldValue('pppoe_password', generatePassword())}
+                >
+                  Generate
+                </Button>
+              }
+            />
+          </Form.Item>
           <Form.Item name="plan_id" label="Plan" rules={[{ required: true }]}>
             <Select placeholder="Select plan">
               {plansData?.data?.map((p: any) => <Select.Option key={p.id} value={p.id}>{p.name} — ₱{p.monthly_price}/mo</Select.Option>)}
