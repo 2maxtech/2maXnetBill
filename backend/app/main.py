@@ -1,3 +1,4 @@
+import app.models  # noqa: F401 — ensures all models are registered in SQLAlchemy mapper
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
