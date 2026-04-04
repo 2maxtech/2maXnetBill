@@ -8,6 +8,18 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _format_kerio_time(t: dict | None) -> str | None:
+    """Convert Kerio structured time {date:{year,month,day}, time:{hour,min,sec}} to ISO string."""
+    if not t:
+        return None
+    try:
+        d = t.get("date", {})
+        tm = t.get("time", {})
+        return f"{d['year']:04d}-{d['month']:02d}-{d['day']:02d}T{tm['hour']:02d}:{tm['min']:02d}:{tm['sec']:02d}"
+    except Exception:
+        return None
+
+
 class KerioClient:
     """Kerio Control JSON-RPC API client."""
 
@@ -201,10 +213,27 @@ class KerioClient:
             "query": {
                 "start": 0,
                 "limit": limit,
-                "orderBy": [],
+                "orderBy": [{"columnName": "ipAddress", "direction": "Asc"}],
             },
+            "refresh": True,
         })
-        return result.get("list", [])
+        raw = result.get("list", [])
+        # Normalize field names: Kerio returns 'ip' not 'ipAddress'
+        hosts = []
+        for h in raw:
+            hosts.append({
+                "id": h.get("id"),
+                "name": h.get("hostname", ""),
+                "ipAddress": h.get("ip") or h.get("ipAddress", ""),
+                "ipAddressFromDHCP": h.get("ipAddressFromDHCP", False),
+                "macAddress": h.get("macAddress", ""),
+                "connections": h.get("connections", 0),
+                "loginTime": _format_kerio_time(h.get("loginTime")),
+                "user": h.get("user"),
+                "totalDownload": h.get("totalDownload", 0),
+                "totalUpload": h.get("totalUpload", 0),
+            })
+        return hosts
 
     # --- Bandwidth ---
 
@@ -226,15 +255,18 @@ class KerioClient:
     # --- Status ---
 
     async def get_interfaces(self) -> list[dict]:
-        """Get network interfaces."""
-        result = await self._rpc("Interfaces.get", {
+        """Get network interfaces (uses Users.get as proxy — Interfaces.get is unsupported here)."""
+        # Kerio Control on this version doesn't expose Interfaces.get with valid params.
+        # We use Users.get as a connectivity probe instead.
+        result = await self._rpc("Users.get", {
             "query": {
                 "start": 0,
-                "limit": 50,
-                "orderBy": [],
+                "limit": 1,
+                "orderBy": [{"columnName": "loginName", "direction": "Asc"}],
             },
+            "domainId": settings.KERIO_DOMAIN_ID,
         })
-        return result.get("list", [])
+        return [{"status": "connected", "users": result.get("totalItems", 0)}]
 
 
 class KerioError(Exception):
