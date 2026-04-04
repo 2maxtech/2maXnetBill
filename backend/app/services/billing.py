@@ -141,14 +141,16 @@ async def record_payment(
             if not other_overdue.scalars().first():
                 if not skip_network:
                     if customer.mikrotik_secret_id:
-                        from app.services.mikrotik import mikrotik
+                        from app.services.mikrotik import get_client_for_customer
                         try:
-                            await mikrotik.enable_secret(customer.mikrotik_secret_id)
-                            if customer.plan:
-                                profile_name = f"{customer.plan.download_mbps}M-{customer.plan.upload_mbps}M"
-                                rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
-                                await mikrotik.ensure_profile(profile_name, rate_limit)
-                                await mikrotik.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
+                            client, _ = await get_client_for_customer(db, customer)
+                            if client:
+                                await client.enable_secret(customer.mikrotik_secret_id)
+                                if customer.plan:
+                                    profile_name = f"{customer.plan.download_mbps}M-{customer.plan.upload_mbps}M"
+                                    rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
+                                    await client.ensure_profile(profile_name, rate_limit)
+                                    await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
                         except Exception as e:
                             logger.error(f"MikroTik enable failed for {customer.id}: {e}")
                     else:
@@ -212,12 +214,14 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
             ):
                 if not skip_network:
                     if customer.mikrotik_secret_id:
-                        from app.services.mikrotik import mikrotik
+                        from app.services.mikrotik import get_client_for_customer
                         try:
-                            throttle_name = f"{settings.THROTTLE_DOWNLOAD_MBPS}M-throttle"
-                            throttle_rate = f"{settings.THROTTLE_UPLOAD_KBPS}k/{settings.THROTTLE_DOWNLOAD_MBPS}M"
-                            await mikrotik.ensure_profile(throttle_name, throttle_rate)
-                            await mikrotik.update_secret(customer.mikrotik_secret_id, {"profile": throttle_name})
+                            client, _ = await get_client_for_customer(db, customer)
+                            if client:
+                                throttle_name = f"{settings.THROTTLE_DOWNLOAD_MBPS}M-throttle"
+                                throttle_rate = f"{settings.THROTTLE_UPLOAD_KBPS}k/{settings.THROTTLE_DOWNLOAD_MBPS}M"
+                                await client.ensure_profile(throttle_name, throttle_rate)
+                                await client.update_secret(customer.mikrotik_secret_id, {"profile": throttle_name})
                         except Exception as e:
                             logger.error(f"MikroTik throttle failed for {customer.id}: {e}")
                     else:
@@ -240,9 +244,11 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
             ):
                 if not skip_network:
                     if customer.mikrotik_secret_id:
-                        from app.services.mikrotik import mikrotik
+                        from app.services.mikrotik import get_client_for_customer
                         try:
-                            await mikrotik.disable_secret(customer.mikrotik_secret_id)
+                            client, _ = await get_client_for_customer(db, customer)
+                            if client:
+                                await client.disable_secret(customer.mikrotik_secret_id)
                         except Exception as e:
                             logger.error(f"MikroTik disconnect failed for {customer.id}: {e}")
                     else:
