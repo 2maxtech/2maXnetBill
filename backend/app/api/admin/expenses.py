@@ -39,7 +39,7 @@ async def get_expense_summary(
     return {"by_category": by_category, "total": grand_total}
 
 
-@router.get("/", response_model=list[ExpenseResponse])
+@router.get("/")
 async def list_expenses(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -50,17 +50,26 @@ async def list_expenses(
     current_user: User = Depends(get_current_user),
 ):
     query = select(Expense)
+    count_query = select(func.count(Expense.id))
 
     if date_from:
         query = query.where(Expense.date >= date_from)
+        count_query = count_query.where(Expense.date >= date_from)
     if date_to:
         query = query.where(Expense.date <= date_to)
+        count_query = count_query.where(Expense.date <= date_to)
     if category:
         query = query.where(Expense.category == category)
+        count_query = count_query.where(Expense.category == category)
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
 
     query = query.order_by(Expense.date.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
-    return result.scalars().all()
+    expenses = result.scalars().all()
+
+    return {"items": expenses, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("/", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)

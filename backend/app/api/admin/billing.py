@@ -27,6 +27,7 @@ from app.schemas.billing import (
     RevenueSummary,
 )
 from app.services import billing as billing_service
+from app.services.audit import log_action
 from app.services.pdf import generate_invoice_pdf
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -242,6 +243,7 @@ async def create_payment(
         raise HTTPException(status_code=404, detail=str(e))
 
     inv = payment.invoice
+    await log_action(db, current_user.id, "payment.create", "payment", payment.id, details=f"invoice={payment.invoice_id} amount={payment.amount} method={payment.method}")
     return {
         "id": payment.id,
         "invoice_id": payment.invoice_id,

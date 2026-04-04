@@ -12,6 +12,7 @@ from app.models.customer import Customer, CustomerStatus
 from app.models.disconnect_log import DisconnectAction, DisconnectLog, DisconnectReason
 from app.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerListResponse, CustomerResponse, CustomerUpdate
+from app.services.audit import log_action
 from app.services.mikrotik import get_client_for_customer
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ async def create_customer(
     except Exception as e:
         logger.warning(f"MikroTik provisioning failed for {customer.id}: {e}")
 
+    await log_action(db, current_user.id, "customer.create", "customer", customer.id)
     return customer
 
 
@@ -178,6 +180,7 @@ async def disconnect_customer(
         performed_at=datetime.now(timezone.utc),
     )
     db.add(log)
+    await log_action(db, current_user.id, "customer.disconnect", "customer", customer.id)
     await db.flush()
     return {"status": "disconnected", "gateway_response": response}
 
@@ -218,6 +221,7 @@ async def reconnect_customer(
         performed_at=datetime.now(timezone.utc),
     )
     db.add(log)
+    await log_action(db, current_user.id, "customer.reconnect", "customer", customer.id)
     await db.flush()
     return {"status": "reconnected", "gateway_response": response}
 
@@ -257,6 +261,7 @@ async def throttle_customer(
         performed_at=datetime.now(timezone.utc),
     )
     db.add(log)
+    await log_action(db, current_user.id, "customer.throttle", "customer", customer.id)
     await db.flush()
     return {"status": "throttled", "gateway_response": response}
 
@@ -303,4 +308,5 @@ async def change_plan(
         except Exception as e:
             mt_result = {"detail": f"MikroTik error: {e}"}
 
+    await log_action(db, current_user.id, "customer.change_plan", "customer", customer.id, details=f"new_plan={new_plan.name}")
     return {"status": "plan_changed", "new_plan": new_plan.name, "mikrotik": mt_result}
