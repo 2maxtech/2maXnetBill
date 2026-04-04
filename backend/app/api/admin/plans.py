@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,6 +10,9 @@ from app.core.dependencies import get_current_user
 from app.models.plan import Plan
 from app.models.user import User
 from app.schemas.plan import PlanCreate, PlanResponse, PlanUpdate
+from app.services.mikrotik import mikrotik
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 
@@ -65,11 +69,32 @@ async def update_plan(
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")
 
+    old_download = plan.download_mbps
+    old_upload = plan.upload_mbps
+
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(plan, field, value)
 
     await db.flush()
     await db.refresh(plan)
+
+    # Sync to MikroTik if speeds changed
+    if plan.download_mbps != old_download or plan.upload_mbps != old_upload:
+        try:
+            old_profile = f"{old_download}M-{old_upload}M"
+            new_profile = f"{plan.download_mbps}M-{plan.upload_mbps}M"
+            new_rate = f"{plan.upload_mbps}M/{plan.download_mbps}M"
+            await mikrotik.ensure_profile(new_profile, new_rate)
+
+            # Update all secrets using the old profile to the new one
+            secrets = await mikrotik.get_secrets()
+            for s in secrets:
+                if s.get("profile") == old_profile:
+                    await mikrotik.update_secret(s[".id"], {"profile": new_profile})
+            logger.info(f"Plan '{plan.name}' synced to MikroTik: {old_profile} → {new_profile}")
+        except Exception as e:
+            logger.warning(f"MikroTik profile sync failed for plan {plan.id}: {e}")
+
     return plan
 
 
