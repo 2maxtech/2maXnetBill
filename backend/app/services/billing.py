@@ -126,7 +126,8 @@ async def record_payment(
         invoice.paid_at = datetime.now(timezone.utc)
 
         # Auto-reconnect if customer was suspended/disconnected and no other overdue invoices
-        customer = invoice.customer
+        cust_result = await db.execute(select(Customer).where(Customer.id == invoice.customer_id))
+        customer = cust_result.scalar_one_or_none()
         if customer.status in (CustomerStatus.suspended, CustomerStatus.disconnected):
             other_overdue = await db.execute(
                 select(Invoice).where(

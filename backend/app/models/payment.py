@@ -26,5 +26,5 @@ class Payment(BaseModel):
     received_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    invoice = relationship("Invoice", back_populates="payments")
+    invoice = relationship("Invoice", back_populates="payments", lazy="selectin")
     receiver = relationship("User", lazy="selectin")
