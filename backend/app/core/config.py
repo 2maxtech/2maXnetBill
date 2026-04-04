@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     THROTTLE_DOWNLOAD_MBPS: int = 1
     THROTTLE_UPLOAD_KBPS: int = 512
 
+    # Email notifications (configure via .env)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "noreply@2maxnet.com"
+
     class Config:
         env_file = ".env"
 

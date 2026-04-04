@@ -97,3 +97,24 @@ def send_billing_reminders_task():
                 raise
 
     return _run_async(_run())
+
+
+@celery.task(name="app.tasks.billing.process_notifications_task")
+def process_notifications_task():
+    """Process and send pending notifications. Runs every 5 minutes."""
+    import asyncio
+    from app.services.notification import process_pending_notifications
+    from app.core.database import async_session
+
+    async def _run():
+        async with async_session() as db:
+            try:
+                result = await process_pending_notifications(db)
+                await db.commit()
+                logger.info(f"Notifications processed: {result}")
+                return result
+            except Exception:
+                await db.rollback()
+                raise
+
+    return _run_async(_run())

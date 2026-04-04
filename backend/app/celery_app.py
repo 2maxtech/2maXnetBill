@@ -27,6 +27,10 @@ celery.conf.beat_schedule = {
         "task": "app.tasks.billing.send_billing_reminders_task",
         "schedule": crontab(hour="9", minute="0"),
     },
+    "process-notifications": {
+        "task": "app.tasks.billing.process_notifications_task",
+        "schedule": 300.0,  # Every 5 minutes
+    },
 }
 
 celery.conf.timezone = "Asia/Manila"

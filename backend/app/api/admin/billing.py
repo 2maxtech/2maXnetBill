@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
 from app.models.customer import Customer
 from app.models.invoice import Invoice, InvoiceStatus
+from app.models.notification import Notification, NotificationStatus
 from app.models.payment import Payment
 from app.models.plan import Plan
 from app.models.user import User, UserRole
@@ -237,3 +238,32 @@ async def revenue_summary(
     current_user: User = Depends(require_role(UserRole.admin, UserRole.billing)),
 ):
     return await billing_service.get_revenue_summary(db, from_date, to_date)
+
+
+@router.get("/notifications")
+async def list_notifications(
+    status_filter: NotificationStatus | None = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = select(Notification)
+    if status_filter:
+        query = query.where(Notification.status == status_filter)
+    query = query.order_by(Notification.created_at.desc()).offset((page - 1) * size).limit(size)
+    result = await db.execute(query)
+    notifications = result.scalars().all()
+    return [
+        {
+            "id": str(n.id),
+            "customer_id": str(n.customer_id),
+            "type": n.type.value,
+            "subject": n.subject,
+            "message": n.message,
+            "status": n.status.value,
+            "sent_at": n.sent_at.isoformat() if n.sent_at else None,
+            "created_at": n.created_at.isoformat(),
+        }
+        for n in notifications
+    ]
