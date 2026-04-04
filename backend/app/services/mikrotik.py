@@ -1,0 +1,214 @@
+import logging
+from typing import Any
+
+import httpx
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class MikroTikError(Exception):
+    """Base MikroTik API error."""
+
+    def __init__(self, message: str, status_code: int = 0):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+
+class MikroTikAuthError(MikroTikError):
+    """Raised on HTTP 401 Unauthorized."""
+
+
+class MikroTikConnectionError(MikroTikError):
+    """Raised when the router is unreachable (connection refused / timeout)."""
+
+
+class MikroTikClient:
+    """MikroTik RouterOS v7 REST API client.
+
+    All requests go to https://<host>/rest/ using HTTP Basic Auth.
+    SSL verification is disabled because RouterOS ships with a self-signed cert.
+    """
+
+    def __init__(
+        self,
+        url: str | None = None,
+        user: str | None = None,
+        password: str | None = None,
+    ):
+        self.url = (url or getattr(settings, "MIKROTIK_URL", "https://192.168.88.1")).rstrip("/")
+        self.user = user or getattr(settings, "MIKROTIK_USER", "admin")
+        self.password = password or getattr(settings, "MIKROTIK_PASSWORD", "")
+        self._client: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Return a lazily-initialised httpx.AsyncClient with Basic Auth."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                auth=(self.user, self.password),
+                verify=False,
+                timeout=30.0,
+            )
+        return self._client
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        json: Any = None,
+    ) -> httpx.Response:
+        """Perform an authenticated REST request, mapping HTTP errors to exceptions."""
+        url = f"{self.url}/rest/{path.lstrip('/')}"
+        client = await self._get_client()
+        try:
+            response = await client.request(method, url, json=json)
+        except httpx.ConnectError as exc:
+            raise MikroTikConnectionError(f"Connection refused to {self.url}: {exc}") from exc
+        except httpx.TimeoutException as exc:
+            raise MikroTikConnectionError(f"Request timed out to {self.url}: {exc}") from exc
+
+        if response.status_code == 401:
+            raise MikroTikAuthError("Authentication failed (401)", status_code=401)
+
+        if response.status_code >= 400:
+            try:
+                detail = response.json().get("detail", response.text)
+            except Exception:
+                detail = response.text
+            raise MikroTikError(
+                f"API error {response.status_code}: {detail}",
+                status_code=response.status_code,
+            )
+
+        return response
+
+    # --- System ---
+
+    async def get_identity(self) -> str:
+        """Return the router's identity (hostname)."""
+        resp = await self._request("GET", "system/identity")
+        data = resp.json()
+        name = data.get("name", "")
+        logger.debug("MikroTik identity: %s", name)
+        return name
+
+    async def get_resources(self) -> dict:
+        """Return system resource info (uptime, memory, CPU, etc.)."""
+        resp = await self._request("GET", "system/resource")
+        return resp.json()
+
+    # --- PPP Secrets ---
+
+    async def get_secrets(self) -> list[dict]:
+        """Return all PPP secrets."""
+        resp = await self._request("GET", "ppp/secret")
+        return resp.json()
+
+    async def get_secret(self, secret_id: str) -> dict | None:
+        """Return a single PPP secret by .id, or None if not found."""
+        try:
+            resp = await self._request("GET", f"ppp/secret/{secret_id}")
+            return resp.json()
+        except MikroTikError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
+
+    async def create_secret(
+        self,
+        name: str,
+        password: str,
+        profile: str = "default",
+        caller_id: str | None = None,
+    ) -> str:
+        """Create a PPP secret and return its .id."""
+        payload: dict[str, Any] = {
+            "name": name,
+            "password": password,
+            "profile": profile,
+            "service": "pppoe",
+        }
+        if caller_id is not None:
+            payload["caller-id"] = caller_id
+
+        resp = await self._request("PUT", "ppp/secret", json=payload)
+        data = resp.json()
+        secret_id = data.get(".id", "")
+        logger.info("Created PPP secret '%s' with id %s", name, secret_id)
+        return secret_id
+
+    async def update_secret(self, secret_id: str, fields: dict) -> None:
+        """Update fields on an existing PPP secret."""
+        await self._request("PATCH", f"ppp/secret/{secret_id}", json=fields)
+        logger.info("Updated PPP secret %s: %s", secret_id, fields)
+
+    async def enable_secret(self, secret_id: str) -> None:
+        """Re-enable a PPP secret (disabled=no)."""
+        await self._request("PATCH", f"ppp/secret/{secret_id}", json={"disabled": "no"})
+        logger.info("Enabled PPP secret %s", secret_id)
+
+    async def disable_secret(self, secret_id: str) -> None:
+        """Disable a PPP secret so the subscriber cannot connect."""
+        await self._request("PATCH", f"ppp/secret/{secret_id}", json={"disabled": "yes"})
+        logger.info("Disabled PPP secret %s", secret_id)
+
+    async def delete_secret(self, secret_id: str) -> None:
+        """Delete a PPP secret."""
+        await self._request("DELETE", f"ppp/secret/{secret_id}")
+        logger.info("Deleted PPP secret %s", secret_id)
+
+    # --- Simple Queues ---
+
+    async def get_queues(self) -> list[dict]:
+        """Return all simple queues."""
+        resp = await self._request("GET", "queue/simple")
+        return resp.json()
+
+    async def set_queue(self, name: str, target: str, max_limit: str) -> str:
+        """Create a simple queue and return its .id.
+
+        Args:
+            name: queue name (e.g. subscriber username)
+            target: IP address or subnet (e.g. "192.168.1.10/32")
+            max_limit: "download/upload" in RouterOS format (e.g. "10M/5M")
+        """
+        payload = {
+            "name": name,
+            "target": target,
+            "max-limit": max_limit,
+        }
+        resp = await self._request("PUT", "queue/simple", json=payload)
+        data = resp.json()
+        queue_id = data.get(".id", "")
+        logger.info("Created simple queue '%s' with id %s", name, queue_id)
+        return queue_id
+
+    async def update_queue(self, queue_id: str, max_limit: str) -> None:
+        """Update the max-limit on an existing simple queue."""
+        await self._request("PATCH", f"queue/simple/{queue_id}", json={"max-limit": max_limit})
+        logger.info("Updated simple queue %s max-limit to %s", queue_id, max_limit)
+
+    async def remove_queue(self, queue_id: str) -> None:
+        """Delete a simple queue."""
+        await self._request("DELETE", f"queue/simple/{queue_id}")
+        logger.info("Deleted simple queue %s", queue_id)
+
+    # --- Active PPP Sessions ---
+
+    async def get_active_sessions(self) -> list[dict]:
+        """Return currently active PPPoE/PPP sessions."""
+        resp = await self._request("GET", "ppp/active")
+        return resp.json()
+
+
+# Singleton instance — falls back gracefully if MIKROTIK_* settings don't exist yet.
+try:
+    mikrotik = MikroTikClient()
+except Exception:  # pragma: no cover
+    mikrotik = MikroTikClient(  # type: ignore[assignment]
+        url="https://192.168.88.1",
+        user="admin",
+        password="",
+    )
