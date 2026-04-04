@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Card, Typography, Select, Space, Button, message, DatePicker, Popconfirm } from 'antd';
-import { PlusOutlined, ReloadOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons';
+import { Table, Card, Typography, Select, Space, Button, message, DatePicker, Popconfirm, Modal } from 'antd';
+import { PlusOutlined, ReloadOutlined, DownloadOutlined, PrinterOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StatusTag from '../../components/StatusTag';
 import { getInvoices, generateInvoices, updateInvoice, downloadInvoicePdf } from '../../api/billing';
+import { getCustomers } from '../../api/customers';
 import type { Invoice } from '../../api/billing';
 
 const Invoices = () => {
@@ -12,6 +13,10 @@ const Invoices = () => {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+
+  const [genForCustomerOpen, setGenForCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
+  const [customerSearch, setCustomerSearch] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, statusFilter, dateRange],
@@ -25,8 +30,14 @@ const Invoices = () => {
       }).then((r) => r.data),
   });
 
+  const { data: customersData } = useQuery({
+    queryKey: ['customers-search', customerSearch],
+    queryFn: () => getCustomers({ page: 1, page_size: 50, search: customerSearch || undefined }),
+    enabled: genForCustomerOpen,
+  });
+
   const generateMut = useMutation({
-    mutationFn: () => generateInvoices(),
+    mutationFn: (customerId?: string) => generateInvoices(customerId),
     onSuccess: (res) => {
       message.success(`Generated ${res.data.generated} invoice(s), skipped ${res.data.skipped}`);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -42,6 +53,17 @@ const Invoices = () => {
     },
     onError: () => message.error('Failed to void invoice'),
   });
+
+  const handleGenerateForCustomer = () => {
+    if (!selectedCustomerId) return;
+    generateMut.mutate(selectedCustomerId, {
+      onSuccess: () => {
+        setGenForCustomerOpen(false);
+        setSelectedCustomerId(undefined);
+        setCustomerSearch('');
+      },
+    });
+  };
 
   const columns = [
     {
@@ -126,14 +148,26 @@ const Invoices = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Typography.Title level={4} style={{ margin: 0 }}>Invoices</Typography.Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          loading={generateMut.isPending}
-          onClick={() => generateMut.mutate()}
-        >
-          Generate Invoices
-        </Button>
+        <Space>
+          <Button
+            icon={<UserOutlined />}
+            onClick={() => setGenForCustomerOpen(true)}
+          >
+            Generate for Customer
+          </Button>
+          <Popconfirm
+            title="Generate invoices for all active customers?"
+            onConfirm={() => generateMut.mutate(undefined)}
+          >
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              loading={generateMut.isPending}
+            >
+              Generate Invoices
+            </Button>
+          </Popconfirm>
+        </Space>
       </div>
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>
@@ -171,6 +205,32 @@ const Invoices = () => {
           }}
         />
       </Card>
+
+      {/* Generate for specific customer modal */}
+      <Modal
+        title="Generate Invoice for Customer"
+        open={genForCustomerOpen}
+        onCancel={() => { setGenForCustomerOpen(false); setSelectedCustomerId(undefined); setCustomerSearch(''); }}
+        onOk={handleGenerateForCustomer}
+        confirmLoading={generateMut.isPending}
+        okButtonProps={{ disabled: !selectedCustomerId }}
+        okText="Generate"
+      >
+        <Select
+          showSearch
+          style={{ width: '100%' }}
+          placeholder="Search and select customer"
+          filterOption={false}
+          onSearch={setCustomerSearch}
+          value={selectedCustomerId}
+          onChange={setSelectedCustomerId}
+          notFoundContent={customersData ? 'No customers found' : 'Type to search'}
+        >
+          {customersData?.data?.items?.map((c: any) => (
+            <Select.Option key={c.id} value={c.id}>{c.full_name} ({c.pppoe_username})</Select.Option>
+          ))}
+        </Select>
+      </Modal>
     </div>
   );
 };

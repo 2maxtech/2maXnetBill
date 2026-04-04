@@ -49,6 +49,7 @@ const Plans = () => {
     { title: 'Download (Mbps)', dataIndex: 'download_mbps', key: 'down' },
     { title: 'Upload (Mbps)', dataIndex: 'upload_mbps', key: 'up' },
     { title: 'Price (₱)', dataIndex: 'monthly_price', key: 'price', render: (v: string) => `₱${v}` },
+    { title: 'Data Cap', dataIndex: 'data_cap_gb', key: 'data_cap', render: (v: number | null) => v ? `${v} GB` : '-' },
     { title: 'Status', key: 'status', render: (_: unknown, r: Plan) => <StatusTag status={r.is_active ? 'active' : 'terminated'} /> },
     { title: 'Created', dataIndex: 'created_at', key: 'created', render: (d: string) => dayjs(d).format('YYYY-MM-DD') },
     {
@@ -79,6 +80,9 @@ const Plans = () => {
           <Form.Item name="download_mbps" label="Download (Mbps)" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="upload_mbps" label="Upload (Mbps)" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="monthly_price" label="Monthly Price (₱)" rules={[{ required: true }]}><InputNumber min={0} precision={2} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="data_cap_gb" label="Data Cap (GB)"><InputNumber min={1} style={{ width: '100%' }} placeholder="Unlimited if empty" /></Form.Item>
+          <Form.Item name="fup_download_mbps" label="FUP Download (Mbps)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="fup_upload_mbps" label="FUP Upload (Mbps)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="description" label="Description"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </Modal>

@@ -29,3 +29,4 @@ export const deleteCustomer = (id: string) => client.delete(`/customers/${id}`);
 export const disconnectCustomer = (id: string) => client.post(`/customers/${id}/disconnect`);
 export const reconnectCustomer = (id: string) => client.post(`/customers/${id}/reconnect`);
 export const throttleCustomer = (id: string) => client.post(`/customers/${id}/throttle`);
+export const changePlan = (id: string, planId: string) => client.post(`/customers/${id}/change-plan`, { plan_id: planId });

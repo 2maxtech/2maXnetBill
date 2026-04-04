@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Card, Input, Select, Button, Space, Modal, Form, Typography, message } from 'antd';
-import { PlusOutlined, SearchOutlined, KeyOutlined } from '@ant-design/icons';
+import { Table, Card, Input, Select, Button, Space, Modal, Form, Typography, message, Popconfirm } from 'antd';
+import { PlusOutlined, SearchOutlined, KeyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCustomers, createCustomer } from '../../api/customers';
+import { getCustomers, createCustomer, deleteCustomer } from '../../api/customers';
 import { getPlans } from '../../api/plans';
+import { getRouters, getAreas } from '../../api/routers';
 import StatusTag from '../../components/StatusTag';
 import dayjs from 'dayjs';
 
@@ -33,6 +34,16 @@ const CustomerList = () => {
     queryFn: () => getPlans({ active_only: true }),
   });
 
+  const { data: routersData } = useQuery({
+    queryKey: ['routers'],
+    queryFn: () => getRouters(),
+  });
+
+  const { data: areasData } = useQuery({
+    queryKey: ['areas'],
+    queryFn: () => getAreas(),
+  });
+
   const createMutation = useMutation({
     mutationFn: createCustomer,
     onSuccess: () => {
@@ -44,6 +55,15 @@ const CustomerList = () => {
     onError: () => message.error('Failed to create customer'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
+    onSuccess: () => {
+      message.success('Customer terminated');
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: () => message.error('Failed to terminate customer'),
+  });
+
   const columns = [
     { title: 'Name', dataIndex: 'full_name', key: 'name', render: (text: string, record: any) => <a onClick={() => navigate(`/customers/${record.id}`)}>{text}</a> },
     { title: 'Email', dataIndex: 'email', key: 'email' },
@@ -51,6 +71,22 @@ const CustomerList = () => {
     { title: 'Plan', key: 'plan', render: (_: any, record: any) => record.plan?.name || '-' },
     { title: 'Status', dataIndex: 'status', key: 'status', render: (status: string) => <StatusTag status={status} /> },
     { title: 'Created', dataIndex: 'created_at', key: 'created', render: (d: string) => dayjs(d).format('YYYY-MM-DD') },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 80,
+      render: (_: any, record: any) => (
+        <Popconfirm
+          title="Terminate this customer?"
+          description="This will set their status to terminated."
+          onConfirm={() => deleteMutation.mutate(record.id)}
+          okText="Terminate"
+          okButtonProps={{ danger: true }}
+        >
+          <Button size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
   ];
 
   return (
@@ -79,7 +115,7 @@ const CustomerList = () => {
         />
       </Card>
 
-      <Modal title="Add Customer" open={modalOpen} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} confirmLoading={createMutation.isPending}>
+      <Modal title="Add Customer" open={modalOpen} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} confirmLoading={createMutation.isPending} width={600}>
         <Form form={form} layout="vertical" onFinish={(values) => createMutation.mutate(values)}>
           <Form.Item name="full_name" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}><Input /></Form.Item>
@@ -103,6 +139,17 @@ const CustomerList = () => {
           <Form.Item name="plan_id" label="Plan" rules={[{ required: true }]}>
             <Select placeholder="Select plan">
               {plansData?.data?.map((p: any) => <Select.Option key={p.id} value={p.id}>{p.name} — ₱{p.monthly_price}/mo</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item name="mac_address" label="MAC Address"><Input placeholder="AA:BB:CC:DD:EE:FF" /></Form.Item>
+          <Form.Item name="area_id" label="Area">
+            <Select placeholder="Select area" allowClear>
+              {areasData?.data?.map((a: any) => <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item name="router_id" label="Router Override">
+            <Select placeholder="Default router" allowClear>
+              {routersData?.data?.map((r: any) => <Select.Option key={r.id} value={r.id}>{r.name}</Select.Option>)}
             </Select>
           </Form.Item>
         </Form>
