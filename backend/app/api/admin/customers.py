@@ -12,7 +12,7 @@ from app.models.customer import Customer, CustomerStatus
 from app.models.disconnect_log import DisconnectAction, DisconnectLog, DisconnectReason
 from app.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerListResponse, CustomerResponse, CustomerUpdate
-from app.services.mikrotik import mikrotik
+from app.services.mikrotik import get_client_for_customer
 
 logger = logging.getLogger(__name__)
 
@@ -75,23 +75,24 @@ async def create_customer(
 
     # Auto-provision PPPoE secret on MikroTik with plan profile
     try:
-        plan = customer.plan
-        profile = "default"
-        if plan:
-            profile_name = f"{plan.download_mbps}M-{plan.upload_mbps}M"
-            rate_limit = f"{plan.upload_mbps}M/{plan.download_mbps}M"
-            profile = await mikrotik.ensure_profile(profile_name, rate_limit)
+        client, _ = await get_client_for_customer(db, customer)
+        if client:
+            plan = customer.plan
+            profile = "default"
+            if plan:
+                profile_name = f"{plan.download_mbps}M-{plan.upload_mbps}M"
+                rate_limit = f"{plan.upload_mbps}M/{plan.download_mbps}M"
+                profile = await client.ensure_profile(profile_name, rate_limit)
 
-        secret_id = await mikrotik.create_secret(
-            name=customer.pppoe_username,
-            password=customer.pppoe_password,
-            profile=profile,
-            caller_id=customer.mac_address,
-        )
-        customer.mikrotik_secret_id = secret_id
-
-        await db.flush()
-        await db.refresh(customer)
+            secret_id = await client.create_secret(
+                name=customer.pppoe_username,
+                password=customer.pppoe_password,
+                profile=profile,
+                caller_id=customer.mac_address,
+            )
+            customer.mikrotik_secret_id = secret_id
+            await db.flush()
+            await db.refresh(customer)
     except Exception as e:
         logger.warning(f"MikroTik provisioning failed for {customer.id}: {e}")
 
@@ -160,8 +161,10 @@ async def disconnect_customer(
     response = {"detail": "No MikroTik secret linked"}
     if customer.mikrotik_secret_id:
         try:
-            await mikrotik.disable_secret(customer.mikrotik_secret_id)
-            response = {"detail": "PPPoE secret disabled"}
+            client, _ = await get_client_for_customer(db, customer)
+            if client:
+                await client.disable_secret(customer.mikrotik_secret_id)
+                response = {"detail": "PPPoE secret disabled"}
         except Exception as e:
             response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to disconnected")
@@ -193,13 +196,15 @@ async def reconnect_customer(
     response = {"detail": "No MikroTik secret linked"}
     if customer.mikrotik_secret_id:
         try:
-            await mikrotik.enable_secret(customer.mikrotik_secret_id)
-            if customer.plan:
-                profile_name = f"{customer.plan.download_mbps}M-{customer.plan.upload_mbps}M"
-                rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
-                await mikrotik.ensure_profile(profile_name, rate_limit)
-                await mikrotik.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
-            response = {"detail": "PPPoE secret enabled + plan profile restored"}
+            client, _ = await get_client_for_customer(db, customer)
+            if client:
+                await client.enable_secret(customer.mikrotik_secret_id)
+                if customer.plan:
+                    profile_name = f"{customer.plan.download_mbps}M-{customer.plan.upload_mbps}M"
+                    rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
+                    await client.ensure_profile(profile_name, rate_limit)
+                    await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
+                response = {"detail": "PPPoE secret enabled + plan profile restored"}
         except Exception as e:
             response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to active")
@@ -232,11 +237,13 @@ async def throttle_customer(
     if customer.mikrotik_secret_id:
         try:
             from app.core.config import settings as throttle_settings
-            throttle_name = f"{throttle_settings.THROTTLE_DOWNLOAD_MBPS}M-throttle"
-            throttle_rate = f"{throttle_settings.THROTTLE_UPLOAD_KBPS}k/{throttle_settings.THROTTLE_DOWNLOAD_MBPS}M"
-            await mikrotik.ensure_profile(throttle_name, throttle_rate)
-            await mikrotik.update_secret(customer.mikrotik_secret_id, {"profile": throttle_name})
-            response = {"detail": f"Profile changed to {throttle_name}"}
+            client, _ = await get_client_for_customer(db, customer)
+            if client:
+                throttle_name = f"{throttle_settings.THROTTLE_DOWNLOAD_MBPS}M-throttle"
+                throttle_rate = f"{throttle_settings.THROTTLE_UPLOAD_KBPS}k/{throttle_settings.THROTTLE_DOWNLOAD_MBPS}M"
+                await client.ensure_profile(throttle_name, throttle_rate)
+                await client.update_secret(customer.mikrotik_secret_id, {"profile": throttle_name})
+                response = {"detail": f"Profile changed to {throttle_name}"}
         except Exception as e:
             response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to suspended")
