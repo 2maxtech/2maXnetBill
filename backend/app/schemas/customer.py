@@ -18,6 +18,8 @@ class CustomerCreate(BaseModel):
     mikrotik_secret_id: str | None = None
     mikrotik_queue_id: str | None = None
     mac_address: str | None = None
+    router_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
 
 
 class CustomerUpdate(BaseModel):
@@ -32,6 +34,8 @@ class CustomerUpdate(BaseModel):
     mikrotik_secret_id: str | None = None
     mikrotik_queue_id: str | None = None
     mac_address: str | None = None
+    router_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
 
 
 class CustomerResponse(BaseModel):
@@ -48,6 +52,8 @@ class CustomerResponse(BaseModel):
     mikrotik_secret_id: str | None = None
     mikrotik_queue_id: str | None = None
     mac_address: str | None = None
+    router_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
 
     model_config = {"from_attributes": True}
 
