@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Card, Form, Input, Button, Typography, message } from 'antd';
-import { UserOutlined, LockOutlined, WifiOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { portalLogin } from '../../api/portal';
+import logo from '../../assets/logo.png';
 
 const PortalLogin = () => {
   const navigate = useNavigate();
@@ -23,21 +24,42 @@ const PortalLogin = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
-      <Card style={{ width: 400, borderRadius: 8 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <WifiOutlined style={{ fontSize: 40, color: '#0d9488' }} />
-          <Typography.Title level={3} style={{ margin: '8px 0 4px' }}>2maXnet</Typography.Title>
-          <Typography.Text type="secondary">Customer Portal</Typography.Text>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+    }}>
+      <Card
+        style={{
+          width: 400,
+          borderRadius: 16,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          background: 'rgba(255, 255, 255, 0.98)',
+        }}
+        styles={{ body: { padding: '40px 32px' } }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <img src={logo} alt="2mX" style={{ height: 48, marginBottom: 12, objectFit: 'contain' }} />
+          <Typography.Title level={4} style={{ margin: '0 0 4px' }}>Customer Portal</Typography.Title>
+          <Typography.Text type="secondary">Sign in to your account</Typography.Text>
         </div>
-        <Form onFinish={onFinish} layout="vertical">
+        <Form onFinish={onFinish} layout="vertical" size="large">
           <Form.Item name="email" rules={[{ required: true, message: 'Enter your email' }]}>
-            <Input prefix={<UserOutlined />} placeholder="Email address" size="large" />
+            <Input prefix={<UserOutlined style={{ color: '#94a3b8' }} />} placeholder="Email address" />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true, message: 'Enter your password' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" />
+            <Input.Password prefix={<LockOutlined style={{ color: '#94a3b8' }} />} placeholder="Password" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ background: '#0d9488' }}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={loading}
+            style={{ height: 44, fontSize: 15, borderRadius: 8 }}
+          >
             Sign In
           </Button>
         </Form>
