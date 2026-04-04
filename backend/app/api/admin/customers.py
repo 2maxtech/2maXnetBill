@@ -12,7 +12,7 @@ from app.models.customer import Customer, CustomerStatus
 from app.models.disconnect_log import DisconnectAction, DisconnectLog, DisconnectReason
 from app.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerListResponse, CustomerResponse, CustomerUpdate
-from app.services.kerio import kerio
+from app.services.mikrotik import mikrotik
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,31 @@ async def create_customer(
     db.add(customer)
     await db.flush()
     await db.refresh(customer)
+
+    # Auto-provision PPPoE secret + queue on MikroTik
+    try:
+        secret_id = await mikrotik.create_secret(
+            name=customer.pppoe_username,
+            password=customer.pppoe_password,
+            caller_id=customer.mac_address,
+        )
+        customer.mikrotik_secret_id = secret_id
+
+        plan = customer.plan
+        if plan:
+            max_limit = f"{plan.download_mbps}M/{plan.upload_mbps}M"
+            queue_id = await mikrotik.set_queue(
+                name=customer.pppoe_username,
+                target=f"<pppoe-{customer.pppoe_username}>",
+                max_limit=max_limit,
+            )
+            customer.mikrotik_queue_id = queue_id
+
+        await db.flush()
+        await db.refresh(customer)
+    except Exception as e:
+        logger.warning(f"MikroTik provisioning failed for {customer.id}: {e}")
+
     return customer
 
 
@@ -134,14 +159,13 @@ async def disconnect_customer(
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    response = {"detail": "No Kerio user linked"}
-    if customer.kerio_user_id:
+    response = {"detail": "No MikroTik secret linked"}
+    if customer.mikrotik_secret_id:
         try:
-            await kerio.login()
-            await kerio.disable_user(customer.kerio_user_id)
-            response = {"detail": "User disabled in Kerio"}
+            await mikrotik.disable_secret(customer.mikrotik_secret_id)
+            response = {"detail": "PPPoE secret disabled"}
         except Exception as e:
-            response = {"detail": f"Kerio error: {e}"}
+            response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to disconnected")
 
     customer.status = CustomerStatus.disconnected
@@ -168,14 +192,16 @@ async def reconnect_customer(
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    response = {"detail": "No Kerio user linked"}
-    if customer.kerio_user_id:
+    response = {"detail": "No MikroTik secret linked"}
+    if customer.mikrotik_secret_id:
         try:
-            await kerio.login()
-            await kerio.enable_user(customer.kerio_user_id)
-            response = {"detail": "User enabled in Kerio"}
+            await mikrotik.enable_secret(customer.mikrotik_secret_id)
+            if customer.mikrotik_queue_id and customer.plan:
+                max_limit = f"{customer.plan.download_mbps}M/{customer.plan.upload_mbps}M"
+                await mikrotik.update_queue(customer.mikrotik_queue_id, max_limit)
+            response = {"detail": "PPPoE secret enabled"}
         except Exception as e:
-            response = {"detail": f"Kerio error: {e}"}
+            response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to active")
 
     customer.status = CustomerStatus.active
@@ -202,14 +228,15 @@ async def throttle_customer(
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    response = {"detail": "No Kerio user linked"}
-    if customer.kerio_user_id:
+    response = {"detail": "No MikroTik queue linked"}
+    if customer.mikrotik_queue_id:
         try:
-            await kerio.login()
-            await kerio.disable_user(customer.kerio_user_id)
-            response = {"detail": "User disabled in Kerio (throttle)"}
+            from app.core.config import settings as throttle_settings
+            throttle_limit = f"{throttle_settings.THROTTLE_DOWNLOAD_MBPS}M/{throttle_settings.THROTTLE_UPLOAD_KBPS}k"
+            await mikrotik.update_queue(customer.mikrotik_queue_id, throttle_limit)
+            response = {"detail": f"Queue throttled to {throttle_limit}"}
         except Exception as e:
-            response = {"detail": f"Kerio error: {e}"}
+            response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to suspended")
 
     customer.status = CustomerStatus.suspended
