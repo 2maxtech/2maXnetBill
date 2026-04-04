@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
 
-    GATEWAY_AGENT_URL: str = "https://gateway:8443"
+    GATEWAY_AGENT_URL: str = "http://gateway:8443"
     GATEWAY_API_KEY: str = "change-me-in-production"
 
     BILLING_GENERATE_DAY: int = 1
