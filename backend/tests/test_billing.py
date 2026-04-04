@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -177,3 +177,98 @@ async def test_auto_reconnect_on_full_payment(db_session: AsyncSession, customer
     log = result.scalar_one()
     assert log.action.value == "reconnect"
     assert log.reason.value == "non_payment"
+
+
+@pytest.mark.asyncio
+async def test_check_overdue_invoices(db_session: AsyncSession, customer: Customer, plan: Plan):
+    from app.services.billing import check_overdue_invoices
+
+    inv = Invoice(
+        id=uuid.uuid4(),
+        customer_id=customer.id,
+        plan_id=plan.id,
+        amount=Decimal("999.00"),
+        due_date=date.today() - timedelta(days=1),
+        status=InvoiceStatus.pending,
+        issued_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    )
+    db_session.add(inv)
+    await db_session.commit()
+
+    count = await check_overdue_invoices(db_session)
+    assert count == 1
+
+    await db_session.refresh(inv)
+    assert inv.status == InvoiceStatus.overdue
+
+
+@pytest.mark.asyncio
+async def test_graduated_disconnect_throttle(db_session: AsyncSession, customer: Customer, plan: Plan):
+    from app.services.billing import process_graduated_disconnect
+
+    days = settings.BILLING_THROTTLE_DAYS_AFTER_DUE
+    inv = Invoice(
+        id=uuid.uuid4(),
+        customer_id=customer.id,
+        plan_id=plan.id,
+        amount=Decimal("999.00"),
+        due_date=date.today() - timedelta(days=days),
+        status=InvoiceStatus.overdue,
+        issued_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    )
+    db_session.add(inv)
+    await db_session.commit()
+
+    result = await process_graduated_disconnect(db_session, skip_gateway=True)
+    assert result["throttled"] == 1
+
+    await db_session.refresh(customer)
+    assert customer.status == CustomerStatus.suspended
+
+
+@pytest.mark.asyncio
+async def test_graduated_disconnect_disconnect(db_session: AsyncSession, customer: Customer, plan: Plan):
+    from app.services.billing import process_graduated_disconnect
+
+    customer.status = CustomerStatus.suspended
+    days = settings.BILLING_DISCONNECT_DAYS_AFTER_DUE
+    inv = Invoice(
+        id=uuid.uuid4(),
+        customer_id=customer.id,
+        plan_id=plan.id,
+        amount=Decimal("999.00"),
+        due_date=date.today() - timedelta(days=days),
+        status=InvoiceStatus.overdue,
+        issued_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    )
+    db_session.add(inv)
+    await db_session.commit()
+
+    result = await process_graduated_disconnect(db_session, skip_gateway=True)
+    assert result["disconnected"] == 1
+
+    await db_session.refresh(customer)
+    assert customer.status == CustomerStatus.disconnected
+
+
+@pytest.mark.asyncio
+async def test_graduated_disconnect_idempotent(db_session: AsyncSession, customer: Customer, plan: Plan):
+    from app.services.billing import process_graduated_disconnect
+
+    customer.status = CustomerStatus.disconnected
+    days = settings.BILLING_DISCONNECT_DAYS_AFTER_DUE
+    inv = Invoice(
+        id=uuid.uuid4(),
+        customer_id=customer.id,
+        plan_id=plan.id,
+        amount=Decimal("999.00"),
+        due_date=date.today() - timedelta(days=days),
+        status=InvoiceStatus.overdue,
+        issued_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    )
+    db_session.add(inv)
+    await db_session.commit()
+
+    result = await process_graduated_disconnect(db_session, skip_gateway=True)
+    assert result["throttled"] == 0
+    assert result["disconnected"] == 0

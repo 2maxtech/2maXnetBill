@@ -158,3 +158,165 @@ async def record_payment(
     await db.flush()
     await db.refresh(payment)
     return payment
+
+
+async def check_overdue_invoices(db: AsyncSession) -> int:
+    """Mark pending invoices past due date as overdue."""
+    today = date.today()
+    result = await db.execute(
+        select(Invoice).where(
+            and_(
+                Invoice.status == InvoiceStatus.pending,
+                Invoice.due_date < today,
+            )
+        )
+    )
+    invoices = result.scalars().all()
+    for inv in invoices:
+        inv.status = InvoiceStatus.overdue
+    await db.flush()
+    return len(invoices)
+
+
+async def process_graduated_disconnect(db: AsyncSession, skip_gateway: bool = False) -> dict:
+    """Apply graduated disconnect enforcement on overdue invoices."""
+    today = date.today()
+    result = await db.execute(
+        select(Invoice).where(Invoice.status == InvoiceStatus.overdue)
+    )
+    invoices = result.scalars().all()
+
+    throttled = 0
+    disconnected = 0
+    flagged = 0
+    errors = []
+
+    for inv in invoices:
+        customer = inv.customer
+        days_overdue = (today - inv.due_date).days
+
+        try:
+            # Throttle: customer is active and overdue enough
+            if (
+                days_overdue >= settings.BILLING_THROTTLE_DAYS_AFTER_DUE
+                and customer.status == CustomerStatus.active
+            ):
+                if not skip_gateway:
+                    from app.services import gateway
+                    try:
+                        await gateway.throttle_customer(
+                            str(customer.id),
+                            customer.pppoe_username,
+                            settings.THROTTLE_DOWNLOAD_MBPS,
+                            settings.THROTTLE_UPLOAD_KBPS,
+                        )
+                    except Exception as e:
+                        logger.error(f"Gateway throttle failed for {customer.id}: {e}")
+
+                customer.status = CustomerStatus.suspended
+                db.add(DisconnectLog(
+                    customer_id=customer.id,
+                    action=DisconnectAction.throttle,
+                    reason=DisconnectReason.non_payment,
+                    performed_by=None,
+                    performed_at=datetime.now(timezone.utc),
+                ))
+                throttled += 1
+
+            # Disconnect: customer is suspended and overdue enough
+            elif (
+                days_overdue >= settings.BILLING_DISCONNECT_DAYS_AFTER_DUE
+                and customer.status == CustomerStatus.suspended
+            ):
+                if not skip_gateway:
+                    from app.services import gateway
+                    try:
+                        await gateway.disconnect_customer(str(customer.id), customer.pppoe_username)
+                    except Exception as e:
+                        logger.error(f"Gateway disconnect failed for {customer.id}: {e}")
+
+                customer.status = CustomerStatus.disconnected
+                db.add(DisconnectLog(
+                    customer_id=customer.id,
+                    action=DisconnectAction.disconnect,
+                    reason=DisconnectReason.non_payment,
+                    performed_by=None,
+                    performed_at=datetime.now(timezone.utc),
+                ))
+                disconnected += 1
+
+            # Flag for termination
+            elif days_overdue >= settings.BILLING_TERMINATE_DAYS_AFTER_DUE:
+                flagged += 1
+
+        except Exception as e:
+            logger.error(f"Graduated disconnect failed for customer {customer.id}: {e}")
+            errors.append({"customer_id": str(customer.id), "error": str(e)})
+
+    await db.flush()
+    return {"throttled": throttled, "disconnected": disconnected, "flagged": flagged, "errors": errors}
+
+
+async def send_billing_reminders(db: AsyncSession) -> int:
+    """Create notification records for invoices due in BILLING_REMINDER_DAYS_BEFORE_DUE days."""
+    from datetime import timedelta
+    today = date.today()
+    reminder_date = today + timedelta(days=settings.BILLING_REMINDER_DAYS_BEFORE_DUE)
+
+    result = await db.execute(
+        select(Invoice).where(
+            and_(
+                Invoice.status == InvoiceStatus.pending,
+                Invoice.due_date == reminder_date,
+            )
+        )
+    )
+    invoices = result.scalars().all()
+
+    for inv in invoices:
+        customer = inv.customer
+        notification = Notification(
+            customer_id=customer.id,
+            type=NotificationType.sms,
+            subject="Payment Reminder",
+            message=f"Hi {customer.full_name}, your bill of ₱{inv.amount} is due on {inv.due_date}. Please pay before the due date to avoid service interruption.",
+            status=NotificationStatus.pending,
+        )
+        db.add(notification)
+
+    await db.flush()
+    return len(invoices)
+
+
+async def get_revenue_summary(db: AsyncSession, start_date: date, end_date: date) -> dict:
+    """Get revenue summary for a date range."""
+    billed_result = await db.execute(
+        select(func.coalesce(func.sum(Invoice.amount), 0)).where(
+            and_(
+                Invoice.issued_at >= datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
+                Invoice.issued_at <= datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc),
+                Invoice.status != InvoiceStatus.void,
+            )
+        )
+    )
+    total_billed = billed_result.scalar() or Decimal("0")
+
+    collected_result = await db.execute(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            and_(
+                Payment.received_at >= datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
+                Payment.received_at <= datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc),
+            )
+        )
+    )
+    total_collected = collected_result.scalar() or Decimal("0")
+
+    total_outstanding = total_billed - total_collected
+    collection_rate = float(total_collected / total_billed * 100) if total_billed > 0 else 0.0
+
+    return {
+        "total_billed": total_billed,
+        "total_collected": total_collected,
+        "total_outstanding": total_outstanding,
+        "collection_rate": round(collection_rate, 1),
+    }
