@@ -13,8 +13,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
 
-    GATEWAY_AGENT_URL: str = "http://gateway:8443"
-    GATEWAY_API_KEY: str = "change-me-in-production"
+    # Kerio Control
+    KERIO_URL: str = "https://192.168.10.1:4081"
+    KERIO_ADMIN_USER: str = "admin"
+    KERIO_ADMIN_PASSWORD: str = ""
+    KERIO_DOMAIN_ID: str = "local"
 
     BILLING_GENERATE_DAY: int = 1
     BILLING_DUE_DAY: int = 15

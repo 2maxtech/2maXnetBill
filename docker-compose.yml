@@ -25,14 +25,14 @@ services:
     depends_on:
       - db
       - redis
-    extra_hosts:
-      - "gateway:192.168.40.41"
     environment:
       DATABASE_URL: postgresql+asyncpg://netbill:netbill@db:5432/netbill
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev-secret-key-not-for-production
-      GATEWAY_API_KEY: dev-gateway-key-2maxnet
-      GATEWAY_AGENT_URL: http://gateway:8443
+      KERIO_URL: https://192.168.10.1:4081
+      KERIO_ADMIN_USER: admin
+      KERIO_ADMIN_PASSWORD: SeafoodCity12#
+      KERIO_DOMAIN_ID: local
 
   frontend:
     build:
@@ -41,8 +41,6 @@ services:
       - "80:80"
     depends_on:
       - backend
-    extra_hosts:
-      - "gateway:192.168.40.41"
 
   celery-worker:
     build:
@@ -53,14 +51,14 @@ services:
     depends_on:
       - db
       - redis
-    extra_hosts:
-      - "gateway:192.168.40.41"
     environment:
       DATABASE_URL: postgresql+asyncpg://netbill:netbill@db:5432/netbill
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev-secret-key-not-for-production
-      GATEWAY_API_KEY: dev-gateway-key-2maxnet
-      GATEWAY_AGENT_URL: http://gateway:8443
+      KERIO_URL: https://192.168.10.1:4081
+      KERIO_ADMIN_USER: admin
+      KERIO_ADMIN_PASSWORD: SeafoodCity12#
+      KERIO_DOMAIN_ID: local
 
   celery-beat:
     build:
