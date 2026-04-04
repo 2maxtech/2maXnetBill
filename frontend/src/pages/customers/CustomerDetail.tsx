@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Descriptions, Button, Space, Typography, Tabs, Popconfirm, message, Spin, Empty, Modal, Form, Input, Select, Table } from 'antd';
-import { ArrowLeftOutlined, DisconnectOutlined, LinkOutlined, ThunderboltOutlined, EditOutlined, SwapOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DisconnectOutlined, LinkOutlined, ThunderboltOutlined, EditOutlined, SwapOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCustomer, disconnectCustomer, reconnectCustomer, throttleCustomer, updateCustomer, changePlan } from '../../api/customers';
+import { getCustomer, disconnectCustomer, reconnectCustomer, throttleCustomer, updateCustomer, changePlan, deleteCustomer } from '../../api/customers';
 import { getInvoices } from '../../api/billing';
 import { getPlans } from '../../api/plans';
 import { getRouters, getAreas } from '../../api/routers';
@@ -80,6 +80,16 @@ const CustomerDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['customer', id] });
     },
     onError: () => message.error('Failed to change plan'),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => deleteCustomer(id!),
+    onSuccess: () => {
+      message.success('Customer terminated');
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      navigate('/customers');
+    },
+    onError: () => message.error('Failed to terminate customer'),
   });
 
   const openEdit = () => {
@@ -197,6 +207,15 @@ const CustomerDetail = () => {
                 <Button type="primary" icon={<LinkOutlined />} loading={reconnectMut.isPending}>Reconnect</Button>
               </Popconfirm>
             )}
+            <Popconfirm
+              title="Terminate this customer?"
+              description="This will permanently set their status to terminated."
+              onConfirm={() => deleteMut.mutate()}
+              okText="Terminate"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<DeleteOutlined />} loading={deleteMut.isPending}>Delete</Button>
+            </Popconfirm>
           </Space>
         </div>
         <Tabs items={tabItems} />

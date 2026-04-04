@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Card, Input, Select, Button, Space, Modal, Form, Typography, message, Popconfirm } from 'antd';
-import { PlusOutlined, SearchOutlined, KeyOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, KeyOutlined, DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCustomers, createCustomer, deleteCustomer } from '../../api/customers';
+import { getCustomers, createCustomer, deleteCustomer, updateCustomer } from '../../api/customers';
 import { getPlans } from '../../api/plans';
 import { getRouters, getAreas } from '../../api/routers';
 import StatusTag from '../../components/StatusTag';
@@ -22,7 +22,10 @@ const CustomerList = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', page, pageSize, search, statusFilter],
@@ -64,6 +67,35 @@ const CustomerList = () => {
     onError: () => message.error('Failed to terminate customer'),
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => updateCustomer(id, data),
+    onSuccess: () => {
+      message.success('Customer updated');
+      setEditModalOpen(false);
+      setEditingCustomer(null);
+      editForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: () => message.error('Failed to update customer'),
+  });
+
+  const openEditModal = (record: any) => {
+    setEditingCustomer(record);
+    editForm.setFieldsValue({
+      full_name: record.full_name,
+      email: record.email,
+      phone: record.phone,
+      address: record.address,
+      pppoe_username: record.pppoe_username,
+      pppoe_password: '',
+      plan_id: record.plan_id,
+      mac_address: record.mac_address || '',
+      router_id: record.router_id || undefined,
+      area_id: record.area_id || undefined,
+    });
+    setEditModalOpen(true);
+  };
+
   const columns = [
     { title: 'Name', dataIndex: 'full_name', key: 'name', render: (text: string, record: any) => <a onClick={() => navigate(`/customers/${record.id}`)}>{text}</a> },
     { title: 'Email', dataIndex: 'email', key: 'email' },
@@ -74,17 +106,21 @@ const CustomerList = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 80,
+      width: 150,
       render: (_: any, record: any) => (
-        <Popconfirm
-          title="Terminate this customer?"
-          description="This will set their status to terminated."
-          onConfirm={() => deleteMutation.mutate(record.id)}
-          okText="Terminate"
-          okButtonProps={{ danger: true }}
-        >
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        <Space size="small">
+          <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/customers/${record.id}`)} />
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+          <Popconfirm
+            title="Terminate this customer?"
+            description="This will set their status to terminated."
+            onConfirm={() => deleteMutation.mutate(record.id)}
+            okText="Terminate"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -136,6 +172,41 @@ const CustomerList = () => {
               }
             />
           </Form.Item>
+          <Form.Item name="plan_id" label="Plan" rules={[{ required: true }]}>
+            <Select placeholder="Select plan">
+              {plansData?.data?.map((p: any) => <Select.Option key={p.id} value={p.id}>{p.name} — ₱{p.monthly_price}/mo</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item name="mac_address" label="MAC Address"><Input placeholder="AA:BB:CC:DD:EE:FF" /></Form.Item>
+          <Form.Item name="area_id" label="Area">
+            <Select placeholder="Select area" allowClear>
+              {areasData?.data?.map((a: any) => <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <Form.Item name="router_id" label="Router Override">
+            <Select placeholder="Default router" allowClear>
+              {routersData?.data?.map((r: any) => <Select.Option key={r.id} value={r.id}>{r.name}</Select.Option>)}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Customer Modal */}
+      <Modal
+        title="Edit Customer"
+        open={editModalOpen}
+        onCancel={() => { setEditModalOpen(false); setEditingCustomer(null); editForm.resetFields(); }}
+        onOk={() => editForm.submit()}
+        confirmLoading={editMutation.isPending}
+        width={600}
+      >
+        <Form form={editForm} layout="vertical" onFinish={(values) => editMutation.mutate({ id: editingCustomer?.id, data: values })}>
+          <Form.Item name="full_name" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}><Input /></Form.Item>
+          <Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="address" label="Address"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="pppoe_username" label="PPPoE Username" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="pppoe_password" label="PPPoE Password (leave blank to keep current)"><Input.Password /></Form.Item>
           <Form.Item name="plan_id" label="Plan" rules={[{ required: true }]}>
             <Select placeholder="Select plan">
               {plansData?.data?.map((p: any) => <Select.Option key={p.id} value={p.id}>{p.name} — ₱{p.monthly_price}/mo</Select.Option>)}

@@ -3,7 +3,7 @@ import {
   Table, Card, Button, Modal, Form, Input, InputNumber, Select,
   Typography, Popconfirm, Space, message, Tag, Alert,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, TagsOutlined, GiftOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, TagsOutlined, GiftOutlined, CopyOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
@@ -124,13 +124,24 @@ const Vouchers = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 80,
-      render: (_: unknown, r: VoucherType) =>
-        r.status === 'unused' ? (
-          <Popconfirm title="Revoke this voucher?" onConfirm={() => revokeMut.mutate(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        ) : null,
+      width: 120,
+      render: (_: unknown, r: VoucherType) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={() => {
+              navigator.clipboard.writeText(r.code);
+              message.success('Code copied to clipboard');
+            }}
+          />
+          {r.status === 'unused' && (
+            <Popconfirm title="Revoke this voucher?" onConfirm={() => revokeMut.mutate(r.id)}>
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          )}
+        </Space>
+      ),
     },
   ];
 

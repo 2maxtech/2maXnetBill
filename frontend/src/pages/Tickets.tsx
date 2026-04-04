@@ -4,7 +4,7 @@ import {
   Table, Card, Button, Modal, Form, Input, Select,
   Typography, Space, message, Tag,
 } from 'antd';
-import { PlusOutlined, CustomerServiceOutlined } from '@ant-design/icons';
+import { PlusOutlined, CustomerServiceOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { getTickets, createTicket, type TicketType } from '../api/tickets';
@@ -105,6 +105,20 @@ const Tickets = () => {
       key: 'created',
       render: (d: string) => dayjs(d).format('YYYY-MM-DD'),
       width: 110,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 80,
+      render: (_: unknown, record: TicketType) => (
+        <Button
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={(e) => { e.stopPropagation(); navigate(`/tickets/${record.id}`); }}
+        >
+          View
+        </Button>
+      ),
     },
   ];
 
