@@ -16,6 +16,11 @@ const Users = lazy(() => import('./pages/system/Users'));
 const SystemStatus = lazy(() => import('./pages/system/SystemStatus'));
 const Logs = lazy(() => import('./pages/system/Logs'));
 
+const PortalLogin = lazy(() => import('./pages/portal/PortalLogin'));
+const PortalDashboard = lazy(() => import('./pages/portal/PortalDashboard'));
+const PortalInvoices = lazy(() => import('./pages/portal/PortalInvoices'));
+const PortalUsage = lazy(() => import('./pages/portal/PortalUsage'));
+
 const Loading = () => <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}><Spin size="large" /></div>;
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -41,6 +46,10 @@ const wrap = (Component: React.LazyExoticComponent<React.ComponentType>) => (
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginWrapper /> },
+  { path: '/portal/login', element: wrap(PortalLogin) },
+  { path: '/portal', element: wrap(PortalDashboard) },
+  { path: '/portal/invoices', element: wrap(PortalInvoices) },
+  { path: '/portal/usage', element: wrap(PortalUsage) },
   {
     path: '/',
     element: <RootLayout />,
