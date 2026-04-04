@@ -87,3 +87,74 @@ async def generate_monthly_invoices(db: AsyncSession) -> dict:
             errors.append({"customer_id": str(cust.id), "error": str(e)})
 
     return {"generated": generated, "skipped": skipped, "errors": errors}
+
+
+async def record_payment(
+    db: AsyncSession,
+    invoice_id,
+    amount: Decimal,
+    method,
+    reference: str | None,
+    received_by=None,
+    skip_gateway: bool = False,
+) -> Payment:
+    """Record a payment against an invoice. Auto-reconnects if fully paid and customer was suspended/disconnected."""
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise ValueError(f"Invoice {invoice_id} not found")
+
+    payment = Payment(
+        invoice_id=invoice.id,
+        amount=amount,
+        method=method,
+        reference_number=reference,
+        received_by=received_by,
+        received_at=datetime.now(timezone.utc),
+    )
+    db.add(payment)
+    await db.flush()
+
+    # Check if invoice is fully paid
+    pay_result = await db.execute(
+        select(func.sum(Payment.amount)).where(Payment.invoice_id == invoice.id)
+    )
+    total_paid = pay_result.scalar() or Decimal("0")
+
+    if total_paid >= invoice.amount:
+        invoice.status = InvoiceStatus.paid
+        invoice.paid_at = datetime.now(timezone.utc)
+
+        # Auto-reconnect if customer was suspended/disconnected and no other overdue invoices
+        customer = invoice.customer
+        if customer.status in (CustomerStatus.suspended, CustomerStatus.disconnected):
+            other_overdue = await db.execute(
+                select(Invoice).where(
+                    and_(
+                        Invoice.customer_id == customer.id,
+                        Invoice.id != invoice.id,
+                        Invoice.status == InvoiceStatus.overdue,
+                    )
+                )
+            )
+            if not other_overdue.scalars().first():
+                if not skip_gateway:
+                    from app.services import gateway
+                    try:
+                        await gateway.reconnect_customer(str(customer.id), customer.pppoe_username)
+                    except Exception as e:
+                        logger.error(f"Gateway reconnect failed for {customer.id}: {e}")
+
+                customer.status = CustomerStatus.active
+                log = DisconnectLog(
+                    customer_id=customer.id,
+                    action=DisconnectAction.reconnect,
+                    reason=DisconnectReason.non_payment,
+                    performed_by=None,
+                    performed_at=datetime.now(timezone.utc),
+                )
+                db.add(log)
+
+    await db.flush()
+    await db.refresh(payment)
+    return payment
