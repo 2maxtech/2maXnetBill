@@ -16,6 +16,10 @@ const Users = lazy(() => import('./pages/system/Users'));
 const SystemStatus = lazy(() => import('./pages/system/SystemStatus'));
 const Logs = lazy(() => import('./pages/system/Logs'));
 
+const Firewall = lazy(() => import('./pages/network/Firewall'));
+const NetworkInterfaces = lazy(() => import('./pages/network/Interfaces'));
+const DhcpDns = lazy(() => import('./pages/network/DhcpDns'));
+
 const PortalLogin = lazy(() => import('./pages/portal/PortalLogin'));
 const PortalDashboard = lazy(() => import('./pages/portal/PortalDashboard'));
 const PortalInvoices = lazy(() => import('./pages/portal/PortalInvoices'));
@@ -64,6 +68,9 @@ export const router = createBrowserRouter([
       { path: 'system/users', element: wrap(Users) },
       { path: 'system/status', element: wrap(SystemStatus) },
       { path: 'system/logs', element: wrap(Logs) },
+      { path: 'firewall', element: wrap(Firewall) },
+      { path: 'network', element: wrap(NetworkInterfaces) },
+      { path: 'dhcp-dns', element: wrap(DhcpDns) },
     ],
   },
 ]);

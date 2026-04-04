@@ -4,6 +4,7 @@ import type { MenuProps } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, AppstoreOutlined, WifiOutlined,
   FileTextOutlined, DollarOutlined, UserOutlined, DesktopOutlined, FileSearchOutlined,
+  SafetyCertificateOutlined, ApiOutlined, GlobalOutlined,
 } from '@ant-design/icons';
 
 type MenuItem = Required<MenuProps>['items'][number];
@@ -16,6 +17,11 @@ const menuItems: MenuItem[] = [
   { key: 'billing', icon: <FileTextOutlined />, label: 'Billing', children: [
     { key: '/billing/invoices', icon: <FileTextOutlined />, label: 'Invoices' },
     { key: '/billing/payments', icon: <DollarOutlined />, label: 'Payments' },
+  ]},
+  { key: 'network', icon: <ApiOutlined />, label: 'Network', children: [
+    { key: '/firewall', icon: <SafetyCertificateOutlined />, label: 'Firewall' },
+    { key: '/network', icon: <ApiOutlined />, label: 'Interfaces & Routing' },
+    { key: '/dhcp-dns', icon: <GlobalOutlined />, label: 'DHCP & DNS' },
   ]},
   { key: 'system', icon: <DesktopOutlined />, label: 'System', children: [
     { key: '/system/users', icon: <UserOutlined />, label: 'Staff Users' },
@@ -37,7 +43,7 @@ const SideMenu = () => {
       theme="dark"
       mode="inline"
       selectedKeys={[location.pathname]}
-      defaultOpenKeys={['billing', 'system']}
+      defaultOpenKeys={['billing', 'network', 'system']}
       items={menuItems}
       onClick={onClick}
       style={{ borderRight: 0 }}
