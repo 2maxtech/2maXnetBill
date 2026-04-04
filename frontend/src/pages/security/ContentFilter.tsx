@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, Typography, Table, Button, Input, message, Space, Tag, Popconfirm, Tabs, Select } from 'antd';
-import { PlusOutlined, DeleteOutlined, ReloadOutlined, StopOutlined, GlobalOutlined } from '@ant-design/icons';
+import { DeleteOutlined, ReloadOutlined, StopOutlined, GlobalOutlined } from '@ant-design/icons';
 import { getBlockedDomains, addBlockedDomain, removeBlockedDomain, getBlockedCountries, applyGeoipBlock } from '../../api/security';
 
 const COUNTRIES = [
@@ -17,11 +17,14 @@ const ContentFilter = () => {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
 
   const { data: domains, isLoading: domainsLoading } = useQuery({ queryKey: ['blocked-domains'], queryFn: () => getBlockedDomains().then((r) => r.data) });
-  const { data: countries } = useQuery({
+  const { data: countries } = useQuery<string[]>({
     queryKey: ['blocked-countries'],
     queryFn: () => getBlockedCountries().then((r) => r.data),
-    onSuccess: (data: string[]) => setSelectedCountries(data),
   });
+
+  useEffect(() => {
+    if (countries) setSelectedCountries(countries);
+  }, [countries]);
 
   const addDomainMut = useMutation({
     mutationFn: addBlockedDomain,
