@@ -30,6 +30,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://netbill:netbill@db:5432/netbill
       REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-not-for-production
+      GATEWAY_API_KEY: dev-gateway-key-2maxnet
+      GATEWAY_AGENT_URL: http://gateway:8443
 
   frontend:
     build:
@@ -55,6 +58,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://netbill:netbill@db:5432/netbill
       REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-not-for-production
+      GATEWAY_API_KEY: dev-gateway-key-2maxnet
+      GATEWAY_AGENT_URL: http://gateway:8443
 
   celery-beat:
     build:
