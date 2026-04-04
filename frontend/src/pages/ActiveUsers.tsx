@@ -1,80 +1,66 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Table, Card, Typography, Button, Tag, Space, Badge, Statistic, Row, Col } from 'antd';
 import { ReloadOutlined, WifiOutlined, UserOutlined, LaptopOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
-import { getActiveHosts, getKerioStatus } from '../api/kerio';
-import type { ActiveHost } from '../api/kerio';
+import { getActiveSessions, getNetworkStatus } from '../api/network';
+import type { PppoeSession } from '../api/network';
 
 const ActiveUsers = () => {
   const queryClient = useQueryClient();
 
   const { data: status } = useQuery({
-    queryKey: ['kerio-status'],
-    queryFn: () => getKerioStatus().then((r) => r.data),
+    queryKey: ['network-status'],
+    queryFn: () => getNetworkStatus().then((r) => r.data),
     refetchInterval: 30000,
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['active-hosts'],
-    queryFn: () => getActiveHosts().then((r) => r.data),
+    queryKey: ['active-sessions'],
+    queryFn: () => getActiveSessions().then((r) => r.data),
     refetchInterval: 15000,
   });
 
-  const hosts = data?.hosts || [];
-  const authenticatedHosts = hosts.filter((h) => h.user?.name);
+  const sessions = data?.sessions || [];
 
   const columns = [
     {
-      title: 'User',
-      key: 'user',
-      render: (_: unknown, r: ActiveHost) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>
-            {r.user?.name || <Typography.Text type="secondary">Unauthenticated</Typography.Text>}
-          </div>
-          {r.name && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.name}</Typography.Text>}
-        </div>
-      ),
+      title: 'Username',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span>,
     },
     {
       title: 'IP Address',
-      key: 'ip',
-      render: (_: unknown, r: ActiveHost) => (
-        <Space size={4}>
-          {r.ipAddress || '-'}
-          {r.ipAddressFromDHCP && <Tag color="blue" style={{ fontSize: 10 }}>DHCP</Tag>}
-        </Space>
+      dataIndex: 'address',
+      key: 'address',
+      width: 140,
+      render: (ip: string) => ip || '-',
+    },
+    {
+      title: 'Caller ID',
+      key: 'caller-id',
+      width: 160,
+      render: (_: unknown, r: PppoeSession) => (
+        <code style={{ fontSize: 12 }}>{r['caller-id'] || '-'}</code>
       ),
-      width: 160,
     },
     {
-      title: 'MAC Address',
-      dataIndex: 'macAddress',
-      key: 'mac',
-      render: (mac: string) => <code style={{ fontSize: 12 }}>{mac || '-'}</code>,
-      width: 160,
-    },
-    {
-      title: 'Connections',
-      dataIndex: 'connections',
-      key: 'conn',
+      title: 'Service',
+      dataIndex: 'service',
+      key: 'service',
       width: 100,
-      render: (c: number) => c || 0,
+      render: (s: string) => <Tag>{s || 'pppoe'}</Tag>,
     },
     {
-      title: 'Login Time',
-      dataIndex: 'loginTime',
-      key: 'login',
-      width: 150,
-      render: (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-',
+      title: 'Uptime',
+      dataIndex: 'uptime',
+      key: 'uptime',
+      width: 120,
     },
     {
       title: 'Status',
       key: 'status',
       width: 100,
-      render: (_: unknown, r: ActiveHost) => (
-        <Badge status={r.user?.name ? 'success' : 'default'} text={r.user?.name ? 'Online' : 'Guest'} />
-      ),
+      render: () => <Badge status="success" text="Online" />,
     },
   ];
 
@@ -82,14 +68,14 @@ const ActiveUsers = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Typography.Title level={4} style={{ margin: 0 }}>
-          <WifiOutlined style={{ color: '#0d9488', marginRight: 8 }} />
+          <WifiOutlined style={{ color: '#e8700a', marginRight: 8 }} />
           Active Users
         </Typography.Title>
         <Button
           icon={<ReloadOutlined />}
           onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['active-hosts'] });
-            queryClient.invalidateQueries({ queryKey: ['kerio-status'] });
+            queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
+            queryClient.invalidateQueries({ queryKey: ['network-status'] });
           }}
         >
           Refresh
@@ -100,11 +86,18 @@ const ActiveUsers = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Kerio Control"
+              title="MikroTik"
               valueRender={() => (
-                <Tag color={status?.connected ? 'green' : 'red'}>
-                  {status?.connected ? 'Connected' : 'Disconnected'}
-                </Tag>
+                <Space direction="vertical" size={0}>
+                  <Tag color={status?.connected ? 'green' : 'red'}>
+                    {status?.connected ? 'Connected' : 'Disconnected'}
+                  </Tag>
+                  {status?.identity && (
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {status.identity}
+                    </Typography.Text>
+                  )}
+                </Space>
               )}
               prefix={<LaptopOutlined />}
             />
@@ -113,18 +106,20 @@ const ActiveUsers = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Authenticated Users"
-              value={authenticatedHosts.length}
-              prefix={<UserOutlined style={{ color: '#0d9488' }} />}
+              title="PPPoE Sessions"
+              value={sessions.length}
+              prefix={<UserOutlined style={{ color: '#e8700a' }} />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Total Hosts"
-              value={hosts.length}
-              prefix={<WifiOutlined style={{ color: '#06b6d4' }} />}
+              title="Router Uptime"
+              valueRender={() => (
+                <Typography.Text>{status?.uptime || '-'}</Typography.Text>
+              )}
+              prefix={<WifiOutlined style={{ color: '#f9a825' }} />}
             />
           </Card>
         </Col>
@@ -132,12 +127,12 @@ const ActiveUsers = () => {
 
       <Card>
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          {hosts.length} host(s) connected — auto-refreshes every 15s
+          {sessions.length} active PPPoE session(s) — auto-refreshes every 15s
         </Typography.Text>
         <Table
           columns={columns}
-          dataSource={hosts}
-          rowKey="macAddress"
+          dataSource={sessions}
+          rowKey=".id"
           loading={isLoading}
           pagination={false}
           size="middle"
