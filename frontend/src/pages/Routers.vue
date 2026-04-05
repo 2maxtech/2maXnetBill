@@ -9,7 +9,9 @@ import {
   updateRouter,
   deleteRouter,
   getRouterStatus,
+  importPreview,
   importFromRouter,
+  type ImportPreview,
   vpnSetup,
   vpnActivate,
   type RouterType,
@@ -46,12 +48,15 @@ const showStatusModal = ref(false)
 const statusData = ref<RouterStatus | null>(null)
 const loadingStatus = ref(false)
 
-// Import confirm
-const confirmImportOpen = ref(false)
+// Import wizard
+const showImportModal = ref(false)
 const importingId = ref('')
 const importingName = ref('')
 const importing = ref(false)
 const importResult = ref('')
+const importPreviewData = ref<ImportPreview | null>(null)
+const importPreviewLoading = ref(false)
+const importPrices = ref<Record<string, string>>({})
 
 // Scan modal
 const showScanModal = ref(false)
@@ -228,20 +233,40 @@ async function viewStatus(router: RouterType) {
   }
 }
 
-function askImport(router: RouterType) {
+async function askImport(router: RouterType) {
   importingId.value = router.id
   importingName.value = router.name
   importResult.value = ''
-  confirmImportOpen.value = true
+  importPreviewData.value = null
+  importPrices.value = {}
+  showImportModal.value = true
+  importPreviewLoading.value = true
+  try {
+    const { data } = await importPreview(router.id)
+    importPreviewData.value = data
+    // Pre-fill prices from existing plans
+    for (const p of data.plans) {
+      importPrices.value[p.name] = p.already_exists ? String(p.current_price) : ''
+    }
+  } catch (e: any) {
+    importResult.value = e.response?.data?.detail || 'Failed to connect to router.'
+  } finally {
+    importPreviewLoading.value = false
+  }
 }
 
 async function doImport() {
   importing.value = true
   importResult.value = ''
   try {
-    const { data } = await importFromRouter(importingId.value)
-    importResult.value = typeof data === 'string' ? data : (data as any)?.message || 'Import completed successfully.'
-    confirmImportOpen.value = false
+    const prices: Record<string, number> = {}
+    for (const [name, val] of Object.entries(importPrices.value)) {
+      const num = parseFloat(val)
+      if (!isNaN(num) && num > 0) prices[name] = num
+    }
+    const { data } = await importFromRouter(importingId.value, prices)
+    const d = data as any
+    importResult.value = `Imported ${d.customers_created} customers, ${d.plans_created} plans created, ${d.plans_updated || 0} plans updated, ${d.customers_skipped} skipped.`
     await loadRouters()
   } catch (e: any) {
     importResult.value = e.response?.data?.detail || 'Import failed.'
@@ -712,15 +737,88 @@ onMounted(loadRouters)
       @cancel="confirmDeleteOpen = false"
     />
 
-    <!-- Confirm Import -->
-    <ConfirmDialog
-      :open="confirmImportOpen"
-      :title="'Import from ' + importingName"
-      message="This will import all PPPoE users and secrets from this router. Existing users with matching usernames will be updated. Continue?"
-      confirm-text="Import"
-      :loading="importing"
-      @confirm="doImport"
-      @cancel="confirmImportOpen = false"
-    />
+    <!-- Import Wizard Modal -->
+    <Modal :open="showImportModal" :title="'Import from ' + importingName" size="lg" @close="showImportModal = false">
+      <!-- Loading preview -->
+      <div v-if="importPreviewLoading" class="py-8 text-center text-gray-400">
+        <svg class="animate-spin h-8 w-8 mx-auto mb-3 text-primary" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        Connecting to router...
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="importResult && !importPreviewData" class="py-4">
+        <div class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ importResult }}</div>
+      </div>
+
+      <!-- Preview with pricing -->
+      <div v-else-if="importPreviewData" class="space-y-4">
+        <!-- Summary -->
+        <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+          Found <strong>{{ importPreviewData.total_secrets }}</strong> PPPoE users
+          (<strong>{{ importPreviewData.new_customers }}</strong> new,
+          {{ importPreviewData.existing_customers }} already imported)
+        </div>
+
+        <!-- Success message after import -->
+        <div v-if="importResult" class="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+          {{ importResult }}
+        </div>
+
+        <!-- Plan pricing table -->
+        <div v-if="!importResult">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Set monthly price for each plan:</label>
+          <div class="rounded-lg border border-gray-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                  <th class="px-3 py-2 text-left font-medium text-gray-600">Plan</th>
+                  <th class="px-3 py-2 text-center font-medium text-gray-600">Speed</th>
+                  <th class="px-3 py-2 text-center font-medium text-gray-600">Users</th>
+                  <th class="px-3 py-2 text-right font-medium text-gray-600">Monthly Price (₱)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr v-for="plan in importPreviewData.plans" :key="plan.name" class="hover:bg-gray-50/50">
+                  <td class="px-3 py-2">
+                    <span class="font-medium text-gray-800">{{ plan.name }}</span>
+                    <span v-if="plan.already_exists" class="ml-1 text-xs text-green-600">(exists)</span>
+                  </td>
+                  <td class="px-3 py-2 text-center text-gray-600">{{ plan.download_mbps }}M/{{ plan.upload_mbps }}M</td>
+                  <td class="px-3 py-2 text-center text-gray-600">{{ plan.customer_count }}</td>
+                  <td class="px-3 py-2">
+                    <input
+                      v-model="importPrices[plan.name]"
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="0"
+                      class="w-28 ml-auto block rounded-lg border border-gray-300 text-sm px-2 py-1.5 text-right focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">Leave blank or 0 for free plans. You can update prices later on the Plans page.</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button
+          @click="showImportModal = false"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {{ importResult ? 'Close' : 'Cancel' }}
+        </button>
+        <button
+          v-if="importPreviewData && !importResult"
+          @click="doImport"
+          :disabled="importing"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ importing ? 'Importing...' : `Import ${importPreviewData.new_customers} Customers` }}
+        </button>
+      </template>
+    </Modal>
   </div>
 </template>

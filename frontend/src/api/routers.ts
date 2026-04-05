@@ -55,8 +55,27 @@ export function getRouterStatus(id: string) {
   return api.get<RouterStatus>(`/routers/${id}/status`)
 }
 
-export function importFromRouter(id: string) {
-  return api.post(`/routers/${id}/import`)
+export interface ImportPreview {
+  plans: {
+    name: string
+    download_mbps: number
+    upload_mbps: number
+    rate_limit: string
+    customer_count: number
+    already_exists: boolean
+    current_price: number
+  }[]
+  total_secrets: number
+  new_customers: number
+  existing_customers: number
+}
+
+export function importPreview(id: string) {
+  return api.post<ImportPreview>(`/routers/${id}/import/preview`)
+}
+
+export function importFromRouter(id: string, planPrices?: Record<string, number>) {
+  return api.post(`/routers/${id}/import`, { plan_prices: planPrices || {} })
 }
 
 export function getAreas() {

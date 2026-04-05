@@ -147,25 +147,22 @@ async def get_router_status(
         return RouterStatusResponse(id=r.id, name=r.name, connected=False, error=error_msg)
 
 
-@router.post("/{router_id}/import")
-async def import_from_router(
-    router_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
-    tenant_id: str = Depends(get_tenant_id),
-):
-    """Import PPPoE secrets and profiles from a specific router into NetLedger."""
-    tid = uuid.UUID(tenant_id)
-    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
-    r = result.scalar_one_or_none()
-    if r is None:
-        raise HTTPException(status_code=404, detail="Router not found")
+def _to_mbps(s: str) -> int:
+    s = s.strip().lower()
+    if s.endswith("m"):
+        return int(float(s[:-1]))
+    elif s.endswith("k"):
+        return max(1, int(float(s[:-1]) / 1000))
+    return max(1, int(float(s)) // 1_000_000) if s.replace(".", "").isdigit() else 1
 
+
+async def _fetch_mt_data(r: Router):
+    """Fetch profiles and secrets from MikroTik, with error handling."""
     client = get_mikrotik_client(str(r.id), r.url, r.username, r.password)
-
     try:
         mt_profiles = await client.get_profiles()
         mt_secrets = await client.get_secrets()
+        return mt_profiles, mt_secrets
     except Exception as e:
         error_msg = str(e)
         if "timed out" in error_msg.lower() or "connection refused" in error_msg.lower():
@@ -177,42 +174,143 @@ async def import_from_router(
             )
         raise HTTPException(status_code=502, detail=error_msg)
 
-    # Build profile → rate-limit map (include ALL profiles, not just those with rate-limit)
+
+@router.post("/{router_id}/import/preview")
+async def import_preview(
+    router_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Preview import: returns profiles with speeds and customer count, no data saved."""
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
+    r = result.scalar_one_or_none()
+    if r is None:
+        raise HTTPException(status_code=404, detail="Router not found")
+
+    mt_profiles, mt_secrets = await _fetch_mt_data(r)
+
+    # Build profile info
     profile_info: dict[str, str] = {}
     for p in mt_profiles:
         profile_info[p["name"]] = p.get("rate-limit", "")
 
-    # Get this tenant's existing customers to avoid duplicates within the same tenant
+    # Existing data
     existing_result = await db.execute(select(Customer).where(Customer.owner_id == tid))
     existing_customers = existing_result.scalars().all()
     existing_usernames = {c.pppoe_username for c in existing_customers}
     existing_secret_ids = {c.mikrotik_secret_id for c in existing_customers if c.mikrotik_secret_id}
 
-    # Get existing plans
+    plans_result = await db.execute(select(Plan).where(Plan.owner_id == tid))
+    existing_plans = {p.name: p for p in plans_result.scalars().all()}
+
+    # Which profiles are used by secrets
+    used_profiles = {s.get("profile", "default") for s in mt_secrets if s.get("name")}
+
+    # Count new customers
+    new_customers = 0
+    for secret in mt_secrets:
+        username = secret.get("name", "")
+        secret_id = secret.get(".id", "")
+        if not username:
+            continue
+        if username not in existing_usernames and secret_id not in existing_secret_ids:
+            new_customers += 1
+
+    # Build plan list for pricing
+    plans = []
+    for pname in sorted(used_profiles):
+        rate = profile_info.get(pname, "")
+        if rate:
+            parts = rate.split("/")
+            if len(parts) == 2:
+                download = _to_mbps(parts[1])
+                upload = _to_mbps(parts[0])
+            else:
+                download, upload = 10, 5
+        else:
+            download, upload = 10, 5
+
+        # Count customers on this profile
+        count = sum(1 for s in mt_secrets if s.get("profile", "default") == pname and s.get("name"))
+        existing = pname in existing_plans
+        existing_price = float(existing_plans[pname].monthly_price) if existing else 0
+
+        plans.append({
+            "name": pname,
+            "download_mbps": download,
+            "upload_mbps": upload,
+            "rate_limit": rate or "none",
+            "customer_count": count,
+            "already_exists": existing,
+            "current_price": existing_price,
+        })
+
+    return {
+        "plans": plans,
+        "total_secrets": len(mt_secrets),
+        "new_customers": new_customers,
+        "existing_customers": len(mt_secrets) - new_customers,
+    }
+
+
+from pydantic import BaseModel
+
+
+class ImportRequest(BaseModel):
+    plan_prices: dict[str, float] = {}
+
+
+@router.post("/{router_id}/import")
+async def import_from_router(
+    router_id: uuid.UUID,
+    body: ImportRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Import PPPoE secrets and profiles from a specific router into NetLedger."""
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
+    r = result.scalar_one_or_none()
+    if r is None:
+        raise HTTPException(status_code=404, detail="Router not found")
+
+    plan_prices = (body.plan_prices if body else None) or {}
+    mt_profiles, mt_secrets = await _fetch_mt_data(r)
+
+    # Build profile → rate-limit map
+    profile_info: dict[str, str] = {}
+    for p in mt_profiles:
+        profile_info[p["name"]] = p.get("rate-limit", "")
+
+    # Get existing data
+    existing_result = await db.execute(select(Customer).where(Customer.owner_id == tid))
+    existing_customers = existing_result.scalars().all()
+    existing_usernames = {c.pppoe_username for c in existing_customers}
+    existing_secret_ids = {c.mikrotik_secret_id for c in existing_customers if c.mikrotik_secret_id}
+
     plans_result = await db.execute(select(Plan).where(Plan.owner_id == tid))
     existing_plans_list = plans_result.scalars().all()
     existing_plans = {p.name: p for p in existing_plans_list}
 
-    def _to_mbps(s: str) -> int:
-        s = s.strip().lower()
-        if s.endswith("m"):
-            return int(float(s[:-1]))
-        elif s.endswith("k"):
-            return max(1, int(float(s[:-1]) / 1000))
-        return max(1, int(float(s)) // 1_000_000) if s.replace(".", "").isdigit() else 1
-
     plans_created = 0
+    plans_updated = 0
     customers_created = 0
     customers_skipped = 0
 
-    # Collect which profiles are actually used by secrets
     used_profiles = {s.get("profile", "default") for s in mt_secrets if s.get("name")}
 
-    # Create plans from profiles (all used profiles, not just those with rate-limit)
     plan_map: dict[str, Plan] = {}
     for pname in used_profiles:
+        price = Decimal(str(plan_prices.get(pname, 0)))
         if pname in existing_plans:
             plan_map[pname] = existing_plans[pname]
+            # Update price if a new price was provided and it's different
+            if pname in plan_prices and existing_plans[pname].monthly_price != price:
+                existing_plans[pname].monthly_price = price
+                plans_updated += 1
             continue
         rate = profile_info.get(pname, "")
         if rate:
@@ -223,13 +321,12 @@ async def import_from_router(
             else:
                 download, upload = 10, 5
         else:
-            # Profile has no rate-limit — use defaults
             download, upload = 10, 5
         plan = Plan(
             name=pname,
             download_mbps=download,
             upload_mbps=upload,
-            monthly_price=Decimal("0.00"),
+            monthly_price=price,
             is_active=True,
             description=f"Imported from MikroTik" + (" (no rate-limit set)" if not rate else ""),
             owner_id=tid,
@@ -241,7 +338,6 @@ async def import_from_router(
         existing_plans[pname] = plan
         plans_created += 1
 
-    # Create customers from secrets
     for secret in mt_secrets:
         secret_id = secret.get(".id", "")
         username = secret.get("name", "")
@@ -277,6 +373,7 @@ async def import_from_router(
     await db.flush()
     return {
         "plans_created": plans_created,
+        "plans_updated": plans_updated,
         "customers_created": customers_created,
         "customers_skipped": customers_skipped,
         "total_secrets": len(mt_secrets),
