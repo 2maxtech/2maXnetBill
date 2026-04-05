@@ -12,7 +12,7 @@ from app.core.dependencies import get_current_user
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password, verify_password
 from app.models.user import User, UserRole
 from app.models.app_setting import AppSetting
-from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse
+from app.schemas.auth import LoginRequest, ProfileUpdate, RefreshRequest, RegisterRequest, TokenResponse
 from app.schemas.user import UserResponse
 from app.core.config import settings as app_settings
 
@@ -60,6 +60,47 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    body: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import or_
+
+    # Password change requires current password
+    if body.new_password:
+        if not body.current_password:
+            raise HTTPException(status_code=400, detail="Current password is required to set a new password")
+        if not verify_password(body.current_password, current_user.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        current_user.password_hash = hash_password(body.new_password)
+
+    # Check uniqueness for username/email changes
+    if body.username and body.username != current_user.username:
+        existing = await db.execute(select(User).where(User.username == body.username, User.id != current_user.id))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Username already taken")
+        current_user.username = body.username
+
+    if body.email and body.email != current_user.email:
+        existing = await db.execute(select(User).where(User.email == body.email, User.id != current_user.id))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Email already taken")
+        current_user.email = body.email
+
+    if body.full_name is not None:
+        current_user.full_name = body.full_name
+    if body.company_name is not None:
+        current_user.company_name = body.company_name
+    if body.phone is not None:
+        current_user.phone = body.phone
+
+    await db.flush()
+    await db.refresh(current_user)
     return current_user
 
 

@@ -62,3 +62,32 @@ export function uploadLogo(formData: FormData) {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+// Account / Profile
+export interface ProfileUpdate {
+  username?: string
+  email?: string
+  full_name?: string
+  company_name?: string
+  phone?: string
+  current_password?: string
+  new_password?: string
+}
+
+export function getProfile() {
+  return api.get<{
+    id: string
+    username: string
+    email: string
+    full_name: string | null
+    company_name: string | null
+    phone: string | null
+    role: string
+    is_active: boolean
+    created_at: string
+  }>('/auth/me')
+}
+
+export function updateProfile(data: ProfileUpdate) {
+  return api.put('/auth/profile', data)
+}

@@ -23,3 +23,13 @@ class RegisterRequest(BaseModel):
     phone: str
     username: str
     password: str
+
+
+class ProfileUpdate(BaseModel):
+    username: str | None = None
+    email: EmailStr | None = None
+    full_name: str | None = None
+    company_name: str | None = None
+    phone: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None

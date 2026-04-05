@@ -10,12 +10,15 @@ import {
   getBrandingSettings,
   saveBrandingSettings,
   uploadLogo,
+  getProfile,
+  updateProfile,
   type SmtpSettings,
   type SmsSettings,
   type BrandingSettings,
+  type ProfileUpdate,
 } from '../api/settings'
 
-const activeTab = ref<'smtp' | 'sms' | 'branding'>('smtp')
+const activeTab = ref<'account' | 'smtp' | 'sms' | 'branding'>('account')
 
 // SMTP
 const smtp = ref<SmtpSettings>({
@@ -69,6 +72,101 @@ const brandingSaving = ref(false)
 const brandingMsg = ref('')
 const brandingMsgType = ref<'success' | 'error'>('success')
 const logoUploading = ref(false)
+
+// Account
+const account = ref({
+  username: '',
+  email: '',
+  full_name: '',
+  company_name: '',
+  phone: '',
+})
+const accountLoading = ref(false)
+const accountSaving = ref(false)
+const accountMsg = ref('')
+const accountMsgType = ref<'success' | 'error'>('success')
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordSaving = ref(false)
+const passwordMsg = ref('')
+const passwordMsgType = ref<'success' | 'error'>('success')
+
+async function loadAccount() {
+  accountLoading.value = true
+  try {
+    const { data } = await getProfile()
+    account.value = {
+      username: data.username,
+      email: data.email,
+      full_name: data.full_name || '',
+      company_name: data.company_name || '',
+      phone: data.phone || '',
+    }
+  } catch {
+    accountMsg.value = 'Failed to load account'
+    accountMsgType.value = 'error'
+  } finally {
+    accountLoading.value = false
+  }
+}
+
+async function handleSaveAccount() {
+  accountSaving.value = true
+  accountMsg.value = ''
+  try {
+    await updateProfile({
+      username: account.value.username,
+      email: account.value.email,
+      full_name: account.value.full_name,
+      company_name: account.value.company_name,
+      phone: account.value.phone,
+    })
+    accountMsg.value = 'Account updated successfully'
+    accountMsgType.value = 'success'
+  } catch (e: any) {
+    accountMsg.value = e.response?.data?.detail || 'Failed to update account'
+    accountMsgType.value = 'error'
+  } finally {
+    accountSaving.value = false
+  }
+}
+
+async function handleChangePassword() {
+  passwordMsg.value = ''
+  if (!currentPassword.value || !newPassword.value) {
+    passwordMsg.value = 'Please fill in both current and new password'
+    passwordMsgType.value = 'error'
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    passwordMsg.value = 'New passwords do not match'
+    passwordMsgType.value = 'error'
+    return
+  }
+  if (newPassword.value.length < 6) {
+    passwordMsg.value = 'New password must be at least 6 characters'
+    passwordMsgType.value = 'error'
+    return
+  }
+  passwordSaving.value = true
+  try {
+    await updateProfile({
+      current_password: currentPassword.value,
+      new_password: newPassword.value,
+    })
+    passwordMsg.value = 'Password changed successfully'
+    passwordMsgType.value = 'success'
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+  } catch (e: any) {
+    passwordMsg.value = e.response?.data?.detail || 'Failed to change password'
+    passwordMsgType.value = 'error'
+  } finally {
+    passwordSaving.value = false
+  }
+}
 
 async function handleLogoUpload(event: Event) {
   const input = event.target as HTMLInputElement
@@ -208,6 +306,7 @@ async function handleSaveBranding() {
 }
 
 onMounted(() => {
+  loadAccount()
   loadSmtp()
   loadSms()
   loadBranding()
@@ -220,6 +319,17 @@ onMounted(() => {
 
     <!-- Tabs -->
     <div class="flex gap-1 border-b border-gray-200">
+      <button
+        @click="activeTab = 'account'"
+        :class="[
+          'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+          activeTab === 'account'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ]"
+      >
+        Account
+      </button>
       <button
         @click="activeTab = 'smtp'"
         :class="[
@@ -253,6 +363,145 @@ onMounted(() => {
       >
         Branding
       </button>
+    </div>
+
+    <!-- Account Tab -->
+    <div v-if="activeTab === 'account'" class="space-y-6">
+      <!-- Profile -->
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Profile Information</h2>
+
+        <div
+          v-if="accountMsg"
+          :class="[
+            'mb-4 rounded-lg px-4 py-3 text-sm border',
+            accountMsgType === 'success'
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : 'bg-red-50 border-red-200 text-red-700'
+          ]"
+        >
+          {{ accountMsg }}
+        </div>
+
+        <div v-if="accountLoading" class="space-y-4">
+          <div v-for="i in 5" :key="i" class="h-10 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
+
+        <form v-else @submit.prevent="handleSaveAccount" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+              <input
+                v-model="account.username"
+                type="text"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <input
+                v-model="account.email"
+                type="email"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <input
+                v-model="account.full_name"
+                type="text"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+              <input
+                v-model="account.phone"
+                type="text"
+                placeholder="+63 912 345 6789"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Organization / Tenant Name</label>
+            <input
+              v-model="account.company_name"
+              type="text"
+              placeholder="My ISP Company"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+            />
+            <p class="mt-1 text-xs text-gray-500">This is your organization name displayed across the platform</p>
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              :disabled="accountSaving"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+            >
+              {{ accountSaving ? 'Saving...' : 'Save Profile' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Change Password -->
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Change Password</h2>
+
+        <div
+          v-if="passwordMsg"
+          :class="[
+            'mb-4 rounded-lg px-4 py-3 text-sm border',
+            passwordMsgType === 'success'
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : 'bg-red-50 border-red-200 text-red-700'
+          ]"
+        >
+          {{ passwordMsg }}
+        </div>
+
+        <form @submit.prevent="handleChangePassword" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Current Password</label>
+            <input
+              v-model="currentPassword"
+              type="password"
+              placeholder="Enter current password"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
+              <input
+                v-model="newPassword"
+                type="password"
+                placeholder="Enter new password"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Confirm New Password</label>
+              <input
+                v-model="confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              :disabled="passwordSaving"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+            >
+              {{ passwordSaving ? 'Changing...' : 'Change Password' }}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- SMTP Tab -->
