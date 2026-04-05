@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.tenant import get_tenant_id
 from app.models.customer import Customer, CustomerStatus
 from app.models.disconnect_log import DisconnectAction, DisconnectLog, DisconnectReason
 from app.models.user import User
@@ -28,9 +29,11 @@ async def list_customers(
     search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Customer)
-    count_query = select(func.count(Customer.id))
+    tid = uuid.UUID(tenant_id)
+    query = select(Customer).where(Customer.owner_id == tid)
+    count_query = select(func.count(Customer.id)).where(Customer.owner_id == tid)
 
     if status_filter:
         query = query.where(Customer.status == status_filter)
@@ -68,8 +71,10 @@ async def create_customer(
     body: CustomerCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     customer = Customer(**body.model_dump())
+    customer.owner_id = uuid.UUID(tenant_id)
     db.add(customer)
     await db.flush()
     await db.refresh(customer)
@@ -97,7 +102,7 @@ async def create_customer(
     except Exception as e:
         logger.warning(f"MikroTik provisioning failed for {customer.id}: {e}")
 
-    await log_action(db, current_user.id, "customer.create", "customer", customer.id)
+    await log_action(db, current_user.id, "customer.create", "customer", customer.id, owner_id=uuid.UUID(tenant_id))
     return customer
 
 
@@ -106,8 +111,10 @@ async def get_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -120,8 +127,10 @@ async def update_customer(
     body: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -139,8 +148,10 @@ async def delete_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -154,8 +165,10 @@ async def disconnect_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -178,9 +191,10 @@ async def disconnect_customer(
         reason=DisconnectReason.manual,
         performed_by=current_user.id,
         performed_at=datetime.now(timezone.utc),
+        owner_id=tid,
     )
     db.add(log)
-    await log_action(db, current_user.id, "customer.disconnect", "customer", customer.id)
+    await log_action(db, current_user.id, "customer.disconnect", "customer", customer.id, owner_id=tid)
     await db.flush()
     return {"status": "disconnected", "gateway_response": response}
 
@@ -190,8 +204,10 @@ async def reconnect_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -219,9 +235,10 @@ async def reconnect_customer(
         reason=DisconnectReason.manual,
         performed_by=current_user.id,
         performed_at=datetime.now(timezone.utc),
+        owner_id=tid,
     )
     db.add(log)
-    await log_action(db, current_user.id, "customer.reconnect", "customer", customer.id)
+    await log_action(db, current_user.id, "customer.reconnect", "customer", customer.id, owner_id=tid)
     await db.flush()
     return {"status": "reconnected", "gateway_response": response}
 
@@ -231,8 +248,10 @@ async def throttle_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -259,9 +278,10 @@ async def throttle_customer(
         reason=DisconnectReason.manual,
         performed_by=current_user.id,
         performed_at=datetime.now(timezone.utc),
+        owner_id=tid,
     )
     db.add(log)
-    await log_action(db, current_user.id, "customer.throttle", "customer", customer.id)
+    await log_action(db, current_user.id, "customer.throttle", "customer", customer.id, owner_id=tid)
     await db.flush()
     return {"status": "throttled", "gateway_response": response}
 
@@ -272,9 +292,11 @@ async def change_plan(
     body: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Change a customer's plan with instant MikroTik speed update."""
-    result = await db.execute(select(Customer).where(Customer.id == customer_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -284,7 +306,7 @@ async def change_plan(
         raise HTTPException(status_code=400, detail="plan_id required")
 
     from app.models.plan import Plan
-    plan_result = await db.execute(select(Plan).where(Plan.id == new_plan_id))
+    plan_result = await db.execute(select(Plan).where(Plan.id == new_plan_id, Plan.owner_id == tid))
     new_plan = plan_result.scalar_one_or_none()
     if not new_plan:
         raise HTTPException(status_code=404, detail="Plan not found")
@@ -308,5 +330,5 @@ async def change_plan(
         except Exception as e:
             mt_result = {"detail": f"MikroTik error: {e}"}
 
-    await log_action(db, current_user.id, "customer.change_plan", "customer", customer.id, details=f"new_plan={new_plan.name}")
+    await log_action(db, current_user.id, "customer.change_plan", "customer", customer.id, details=f"new_plan={new_plan.name}", owner_id=tid)
     return {"status": "plan_changed", "new_plan": new_plan.name, "mikrotik": mt_result}

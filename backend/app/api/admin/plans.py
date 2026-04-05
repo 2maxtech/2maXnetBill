@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.tenant import get_tenant_id
 from app.models.plan import Plan
 from app.models.user import User
 from app.schemas.plan import PlanCreate, PlanResponse, PlanUpdate
@@ -22,8 +23,10 @@ async def list_plans(
     active_only: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Plan)
+    tid = uuid.UUID(tenant_id)
+    query = select(Plan).where(Plan.owner_id == tid)
     if active_only:
         query = query.where(Plan.is_active == True)
     query = query.order_by(Plan.monthly_price)
@@ -36,8 +39,10 @@ async def create_plan(
     body: PlanCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     plan = Plan(**body.model_dump())
+    plan.owner_id = uuid.UUID(tenant_id)
     db.add(plan)
     await db.flush()
     await db.refresh(plan)
@@ -49,8 +54,10 @@ async def get_plan(
     plan_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Plan).where(Plan.id == plan_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Plan).where(Plan.id == plan_id, Plan.owner_id == tid))
     plan = result.scalar_one_or_none()
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")
@@ -63,8 +70,10 @@ async def update_plan(
     body: PlanUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Plan).where(Plan.id == plan_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Plan).where(Plan.id == plan_id, Plan.owner_id == tid))
     plan = result.scalar_one_or_none()
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")
@@ -103,8 +112,10 @@ async def delete_plan(
     plan_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Plan).where(Plan.id == plan_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Plan).where(Plan.id == plan_id, Plan.owner_id == tid))
     plan = result.scalar_one_or_none()
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")

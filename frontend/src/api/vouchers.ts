@@ -1,21 +1,30 @@
-import client from './client';
+import api from './client'
 
 export interface VoucherType {
-  id: string;
-  code: string;
-  plan_id: string;
-  duration_days: number;
-  status: string;
-  customer_id: string | null;
-  activated_at: string | null;
-  expires_at: string | null;
-  batch_id: string | null;
-  created_at: string;
+  id: string
+  code: string
+  plan_id: string
+  duration_days: number
+  status: string
+  customer_id: string | null
+  activated_at: string | null
+  expires_at: string | null
+  batch_id: string | null
+  created_at: string
 }
 
-export const getVouchers = (params?: any) =>
-  client.get<VoucherType[]>('/vouchers/', { params });
-export const generateVouchers = (data: any) =>
-  client.post<VoucherType[]>('/vouchers/generate', data);
-export const redeemVoucher = (data: any) => client.post('/vouchers/redeem', data);
-export const revokeVoucher = (id: string) => client.delete(`/vouchers/${id}`);
+export function getVouchers(params?: { status?: string; batch_id?: string; page?: number; size?: number }) {
+  return api.get<{ items: VoucherType[]; total: number }>('/vouchers/', { params })
+}
+
+export function generateVouchers(data: { count: number; plan_id: string; duration_days: number }) {
+  return api.post<VoucherType[]>('/vouchers/generate', data)
+}
+
+export function redeemVoucher(data: { code: string; customer_id: string }) {
+  return api.post('/vouchers/redeem', data)
+}
+
+export function revokeVoucher(id: string) {
+  return api.delete(`/vouchers/${id}`)
+}

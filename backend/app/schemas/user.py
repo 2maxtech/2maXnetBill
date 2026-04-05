@@ -10,6 +10,9 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     username: str
     email: str
+    full_name: str | None = None
+    company_name: str | None = None
+    phone: str | None = None
     role: UserRole
     is_active: bool
     created_at: datetime

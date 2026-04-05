@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
+from app.core.tenant import get_tenant_id
 from app.models.router import Area
 from app.models.user import User
 from app.schemas.router import AreaCreate, AreaResponse, AreaUpdate
@@ -17,8 +18,10 @@ router = APIRouter(prefix="/areas", tags=["areas"])
 async def list_areas(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Area).order_by(Area.name))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Area).where(Area.owner_id == tid).order_by(Area.name))
     return result.scalars().all()
 
 
@@ -27,8 +30,10 @@ async def create_area(
     body: AreaCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     a = Area(**body.model_dump())
+    a.owner_id = uuid.UUID(tenant_id)
     db.add(a)
     await db.flush()
     await db.refresh(a)
@@ -41,8 +46,10 @@ async def update_area(
     body: AreaUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Area).where(Area.id == area_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Area).where(Area.id == area_id, Area.owner_id == tid))
     a = result.scalar_one_or_none()
     if a is None:
         raise HTTPException(status_code=404, detail="Area not found")
@@ -60,8 +67,10 @@ async def delete_area(
     area_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Area).where(Area.id == area_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Area).where(Area.id == area_id, Area.owner_id == tid))
     a = result.scalar_one_or_none()
     if a is None:
         raise HTTPException(status_code=404, detail="Area not found")

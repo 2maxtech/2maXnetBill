@@ -32,9 +32,14 @@ async def get_current_user(
     return user
 
 
-def require_role(*roles: UserRole):
+def require_role(*roles):
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in roles:
+        # super_admin has access to everything
+        if current_user.role == UserRole.super_admin:
+            return current_user
+        # Check if role matches (support both string and enum)
+        allowed = {r.value if isinstance(r, UserRole) else r for r in roles}
+        if current_user.role.value not in allowed:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return current_user
     return role_checker

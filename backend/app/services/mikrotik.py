@@ -150,7 +150,22 @@ class MikroTikClient:
         logger.info("Enabled PPP secret %s", secret_id)
 
     async def disable_secret(self, secret_id: str) -> None:
-        """Disable a PPP secret so the subscriber cannot connect."""
+        """Disable a PPP secret and kill any active session."""
+        # Get the secret name to find the active session
+        try:
+            secret = await self.get_secret(secret_id)
+            if secret:
+                username = secret.get("name", "")
+                # Kill active session if any
+                sessions = await self.get_active_sessions()
+                for s in sessions:
+                    if s.get("name") == username:
+                        sid = s.get(".id", "")
+                        if sid:
+                            await self._request("DELETE", f"ppp/active/{sid}")
+                            logger.info("Killed active session for %s", username)
+        except Exception as e:
+            logger.warning("Failed to kill active session for secret %s: %s", secret_id, e)
         await self._request("PATCH", f"ppp/secret/{secret_id}", json={"disabled": "yes"})
         logger.info("Disabled PPP secret %s", secret_id)
 
@@ -253,6 +268,9 @@ def get_mikrotik_client(
     if cache_key in _client_cache:
         return _client_cache[cache_key]
 
+    # Auto-prepend http:// if no protocol
+    if url and not url.startswith(("http://", "https://")):
+        url = "http://" + url
     client = MikroTikClient(url=url, user=user, password=password)
     _client_cache[cache_key] = client
     return client

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.tenant import get_tenant_id
 from app.models.audit_log import AuditLog
 from app.models.user import User
 from pydantic import BaseModel
@@ -39,8 +40,10 @@ async def list_audit_logs(
     date_to: date | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(AuditLog)
+    tid = uuid.UUID(tenant_id)
+    query = select(AuditLog).where(AuditLog.owner_id == tid)
 
     if entity_type:
         query = query.where(AuditLog.entity_type == entity_type)

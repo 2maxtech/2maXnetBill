@@ -17,7 +17,14 @@ env = Environment(
 )
 
 
-def generate_invoice_pdf(invoice: Invoice, customer: Customer, plan: Plan, payments: list, total_paid: Decimal) -> bytes:
+def generate_invoice_pdf(
+    invoice: Invoice,
+    customer: Customer,
+    plan: Plan,
+    payments: list,
+    total_paid: Decimal,
+    branding: dict | None = None,
+) -> bytes:
     """Generate a PDF invoice and return bytes."""
     template = env.get_template("invoice.html")
     balance = invoice.amount - total_paid
@@ -29,6 +36,7 @@ def generate_invoice_pdf(invoice: Invoice, customer: Customer, plan: Plan, payme
         payments=payments,
         total_paid=total_paid,
         balance=balance,
+        branding=branding or {},
     )
 
     pdf_bytes = HTML(string=html_content).write_pdf()

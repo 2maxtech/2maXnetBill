@@ -29,6 +29,7 @@ class DisconnectLog(BaseModel):
     reason: Mapped[DisconnectReason] = mapped_column(Enum(DisconnectReason), nullable=False)
     performed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     performed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     customer = relationship("Customer", lazy="selectin")
-    performer = relationship("User", lazy="selectin")
+    performer = relationship("User", foreign_keys=[performed_by], lazy="selectin")

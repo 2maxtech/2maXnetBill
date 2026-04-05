@@ -1,32 +1,63 @@
-import client from './client';
+import api from './client'
 
 export interface Customer {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  address: string | null;
-  pppoe_username: string;
-  status: string;
-  plan_id: string;
-  plan: { id: string; name: string; download_mbps: number; upload_mbps: number; monthly_price: string; } | null;
-  created_at: string;
+  id: string
+  full_name: string
+  email: string
+  phone: string
+  address: string
+  pppoe_username: string
+  pppoe_password?: string
+  status: string
+  plan_id: string | null
+  plan?: { id: string; name: string; monthly_price: number; download_mbps: number; upload_mbps: number }
+  router_id?: string | null
+  area_id?: string | null
+  mac_address?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  created_at: string
 }
 
 export interface CustomerListResponse {
-  items: Customer[];
-  total: number;
-  page: number;
-  page_size: number;
+  items: Customer[]
+  total: number
+  page: number
+  page_size: number
 }
 
-export const getCustomers = (params: { page?: number; page_size?: number; search?: string; status?: string }) =>
-  client.get<CustomerListResponse>('/customers/', { params });
-export const getCustomer = (id: string) => client.get<Customer>(`/customers/${id}`);
-export const createCustomer = (data: Record<string, unknown>) => client.post('/customers/', data);
-export const updateCustomer = (id: string, data: Record<string, unknown>) => client.put(`/customers/${id}`, data);
-export const deleteCustomer = (id: string) => client.delete(`/customers/${id}`);
-export const disconnectCustomer = (id: string) => client.post(`/customers/${id}/disconnect`);
-export const reconnectCustomer = (id: string) => client.post(`/customers/${id}/reconnect`);
-export const throttleCustomer = (id: string) => client.post(`/customers/${id}/throttle`);
-export const changePlan = (id: string, planId: string) => client.post(`/customers/${id}/change-plan`, { plan_id: planId });
+export function getCustomers(params?: { page?: number; page_size?: number; status?: string; search?: string }) {
+  return api.get<CustomerListResponse>('/customers/', { params })
+}
+
+export function getCustomer(id: string) {
+  return api.get<Customer>(`/customers/${id}`)
+}
+
+export function createCustomer(data: Partial<Customer> & { pppoe_password?: string }) {
+  return api.post<Customer>('/customers/', data)
+}
+
+export function updateCustomer(id: string, data: Partial<Customer>) {
+  return api.put<Customer>(`/customers/${id}`, data)
+}
+
+export function deleteCustomer(id: string) {
+  return api.delete(`/customers/${id}`)
+}
+
+export function disconnectCustomer(id: string) {
+  return api.post(`/customers/${id}/disconnect`)
+}
+
+export function reconnectCustomer(id: string) {
+  return api.post(`/customers/${id}/reconnect`)
+}
+
+export function throttleCustomer(id: string) {
+  return api.post(`/customers/${id}/throttle`)
+}
+
+export function changePlan(id: string, planId: string) {
+  return api.post(`/customers/${id}/change-plan`, { plan_id: planId })
+}

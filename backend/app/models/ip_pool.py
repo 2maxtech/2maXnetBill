@@ -15,5 +15,6 @@ class IPPool(BaseModel):
     range_start: Mapped[str] = mapped_column(String(15), nullable=False)
     range_end: Mapped[str] = mapped_column(String(15), nullable=False)
     subnet: Mapped[str] = mapped_column(String(18), nullable=False)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     router = relationship("Router", lazy="selectin")

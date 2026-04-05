@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.tenant import get_tenant_id
 from app.models.expense import Expense, ExpenseCategory
 from app.models.user import User
 from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseUpdate
@@ -20,9 +21,11 @@ async def get_expense_summary(
     date_to: date | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Aggregate expenses by category for a date range, plus total."""
-    query = select(Expense.category, func.sum(Expense.amount).label("total"))
+    tid = uuid.UUID(tenant_id)
+    query = select(Expense.category, func.sum(Expense.amount).label("total")).where(Expense.owner_id == tid)
 
     if date_from:
         query = query.where(Expense.date >= date_from)
@@ -48,9 +51,11 @@ async def list_expenses(
     category: ExpenseCategory | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Expense)
-    count_query = select(func.count(Expense.id))
+    tid = uuid.UUID(tenant_id)
+    query = select(Expense).where(Expense.owner_id == tid)
+    count_query = select(func.count(Expense.id)).where(Expense.owner_id == tid)
 
     if date_from:
         query = query.where(Expense.date >= date_from)
@@ -77,8 +82,10 @@ async def create_expense(
     body: ExpenseCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     expense = Expense(**body.model_dump(), recorded_by=current_user.id)
+    expense.owner_id = uuid.UUID(tenant_id)
     db.add(expense)
     await db.flush()
     await db.refresh(expense)
@@ -91,8 +98,10 @@ async def update_expense(
     body: ExpenseUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.owner_id == tid))
     expense = result.scalar_one_or_none()
     if expense is None:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -110,8 +119,10 @@ async def delete_expense(
     expense_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.owner_id == tid))
     expense = result.scalar_one_or_none()
     if expense is None:
         raise HTTPException(status_code=404, detail="Expense not found")

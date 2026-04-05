@@ -27,13 +27,21 @@
 <body>
   <div class="header">
     <div>
-      <div class="company">2m<span style="color: #06b6d4;">X</span></div>
-      <div class="company-sub">Internet Service Provider</div>
+      {% if branding.get('company_logo_url') %}
+      <img src="{{ branding.company_logo_url }}" alt="{{ branding.get('company_name', 'NetLedger') }}" style="max-height: 60px; max-width: 200px; margin-bottom: 6px;" />
+      {% endif %}
+      <div class="company">{{ branding.get('company_name', 'NetLedger') }}</div>
+      <div class="company-sub">
+        {% if branding.get('company_address') %}{{ branding.company_address }}<br>{% endif %}
+        {% if branding.get('company_phone') %}{{ branding.company_phone }}{% endif %}
+        {% if branding.get('company_phone') and branding.get('company_email') %} | {% endif %}
+        {% if branding.get('company_email') %}{{ branding.company_email }}{% endif %}
+      </div>
     </div>
     <div>
       <div class="invoice-title">INVOICE</div>
       <div class="invoice-meta">
-        Invoice #: {{ invoice.id | string | truncate(8, False, '') }}<br>
+        Invoice #: {{ branding.get('invoice_prefix', 'INV-') }}{{ invoice.id | string | truncate(8, False, '') }}<br>
         Issued: {{ invoice.issued_at.strftime('%B %d, %Y') }}<br>
         Due: {{ invoice.due_date.strftime('%B %d, %Y') }}<br>
         Status: <span class="status status-{{ invoice.status.value }}">{{ invoice.status.value | upper }}</span>
@@ -112,7 +120,7 @@
 
   <div class="footer">
     <div class="divider"></div>
-    Thank you for choosing 2m<span style="color: #06b6d4;">X</span>. Please pay before the due date to avoid service interruption.
+    {{ branding.get('invoice_footer', 'Thank you for your business! Please pay before the due date to avoid service interruption.') }}
   </div>
 </body>
 </html>

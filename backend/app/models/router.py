@@ -18,6 +18,9 @@ class Router(BaseModel):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     maintenance_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
 
     areas = relationship("Area", back_populates="router", lazy="selectin")
 
@@ -29,6 +32,9 @@ class Area(BaseModel):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     router_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("routers.id"), nullable=True
+    )
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
 
     router = relationship("Router", back_populates="areas", lazy="selectin")

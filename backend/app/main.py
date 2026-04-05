@@ -1,13 +1,15 @@
+import os
 import app.models  # noqa: F401 — ensures all models are registered in SQLAlchemy mapper
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.admin.customers import router as customers_router
 from app.api.admin.plans import router as plans_router
 from app.api.admin.billing import router as billing_router
 from app.api.admin.network import router as network_router
 from app.api.portal import router as portal_router
-from app.api.admin.users import router as users_router
+from app.api.admin.users import router as users_router, org_router as organizations_router
 from app.api.auth import router as auth_router
 from app.api.admin.routers import router as routers_router
 from app.api.admin.areas import router as areas_router
@@ -44,6 +46,13 @@ app.include_router(vouchers_router, prefix=settings.API_V1_PREFIX)
 app.include_router(tickets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(ipam_router, prefix=settings.API_V1_PREFIX)
 app.include_router(audit_router, prefix=settings.API_V1_PREFIX)
+app.include_router(organizations_router, prefix=settings.API_V1_PREFIX)
+
+
+# Serve uploaded files
+UPLOAD_DIR = "/app/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 @app.get("/health")

@@ -29,3 +29,4 @@ class Expense(BaseModel):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     receipt_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     recorded_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

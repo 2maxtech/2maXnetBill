@@ -1,73 +1,99 @@
-import axios from 'axios';
+import axios from 'axios'
 
-const client = axios.create({
+let _tenantId: string | null = null
+
+export function setTenantId(id: string | null) {
+  _tenantId = id
+}
+
+const api = axios.create({
   baseURL: '/api/v1',
-  headers: { 'Content-Type': 'application/json' },
-});
+})
 
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: unknown) => void }> = [];
+let isRefreshing = false
+let failedQueue: Array<{ resolve: (v: any) => void; reject: (e: any) => void }> = []
 
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token!);
-  });
-  failedQueue = [];
-};
+function processQueue(error: any, token: string | null = null) {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error)
+    else resolve(token)
+  })
+  failedQueue = []
+}
 
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-}, (error) => Promise.reject(error));
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  if (_tenantId) {
+    config.headers['X-Tenant-Id'] = _tenantId
+  }
+  return config
+})
 
-client.interceptors.response.use(
+api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url === '/auth/login' || originalRequest.url === '/auth/refresh') {
-        return Promise.reject(error);
-      }
       if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
         }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return client(originalRequest);
-        }).catch((err) => Promise.reject(err));
+          originalRequest.headers.Authorization = `Bearer ${token}`
+          return api(originalRequest)
+        })
       }
-      originalRequest._retry = true;
-      isRefreshing = true;
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (!refreshToken) {
-        isRefreshing = false;
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
+      originalRequest._retry = true
+      isRefreshing = true
       try {
-        const response = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken });
-        const { access_token, refresh_token: newRefresh } = response.data;
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('refresh_token', newRefresh);
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        processQueue(null, access_token);
-        return client(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+        const refreshToken = localStorage.getItem('refresh_token')
+        if (!refreshToken) throw new Error('No refresh token')
+        const { data } = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken })
+        localStorage.setItem('access_token', data.access_token)
+        localStorage.setItem('refresh_token', data.refresh_token)
+        api.defaults.headers.common.Authorization = `Bearer ${data.access_token}`
+        processQueue(null, data.access_token)
+        originalRequest.headers.Authorization = `Bearer ${data.access_token}`
+        return api(originalRequest)
+      } catch (e) {
+        processQueue(e, null)
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        window.location.href = '/login'
+        return Promise.reject(e)
       } finally {
-        isRefreshing = false;
+        isRefreshing = false
       }
     }
-    return Promise.reject(error);
-  },
-);
+    return Promise.reject(error)
+  }
+)
 
-export default client;
+export default api
+
+// Portal API client
+export const portalApi = axios.create({
+  baseURL: '/api/v1/portal',
+})
+
+portalApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('portal_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+portalApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('portal_token')
+      localStorage.removeItem('portal_customer')
+      window.location.href = '/portal/login'
+    }
+    return Promise.reject(error)
+  }
+)

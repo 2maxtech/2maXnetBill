@@ -1,0 +1,66 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
+const customer = computed(() => {
+  const raw = localStorage.getItem('portal_customer')
+  return raw ? JSON.parse(raw) : null
+})
+
+function logout() {
+  localStorage.removeItem('portal_token')
+  localStorage.removeItem('portal_customer')
+  router.push('/portal/login')
+}
+
+const navItems = [
+  { path: '/portal', label: 'Dashboard', exact: true },
+  { path: '/portal/invoices', label: 'Invoices' },
+  { path: '/portal/usage', label: 'Usage' },
+  { path: '/portal/tickets', label: 'Tickets' },
+]
+
+function isActive(item: { path: string; exact?: boolean }) {
+  return item.exact ? route.path === item.path : route.path.startsWith(item.path)
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Top nav -->
+    <header class="bg-white border-b border-gray-200">
+      <div class="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
+        <div class="flex items-center gap-3">
+          <img src="/logo-2.png" class="w-7 h-7" />
+          <span class="font-bold text-gray-800">NetLedger</span>
+        </div>
+        <div class="flex items-center gap-6">
+          <nav class="flex gap-1">
+            <router-link
+              v-for="item in navItems"
+              :key="item.path"
+              :to="item.path"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                isActive(item)
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-600 hover:bg-gray-100'
+              ]"
+            >
+              {{ item.label }}
+            </router-link>
+          </nav>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600">{{ customer?.full_name }}</span>
+            <button @click="logout()" class="text-sm text-red-600 hover:text-red-700">Logout</button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="max-w-5xl mx-auto px-4 py-6">
+      <router-view />
+    </main>
+  </div>
+</template>

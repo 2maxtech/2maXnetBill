@@ -1,15 +1,33 @@
-import client from './client';
+import api from './client'
 
 export interface StaffUser {
-  id: string;
-  username: string;
-  email: string;
-  role: 'admin' | 'billing' | 'technician';
-  is_active: boolean;
-  created_at: string;
+  id: string
+  username: string
+  email: string
+  full_name: string | null
+  company_name: string | null
+  phone: string | null
+  role: string
+  is_active: boolean
+  created_at: string
 }
 
-export const getUsers = () => client.get<StaffUser[]>('/system/users/');
-export const createUser = (data: Record<string, unknown>) => client.post('/system/users/', data);
-export const updateUser = (id: string, data: Record<string, unknown>) => client.put(`/system/users/${id}`, data);
-export const deleteUser = (id: string) => client.delete(`/system/users/${id}`);
+export function getUsers() {
+  return api.get<StaffUser[]>('/system/users/')
+}
+
+export function createUser(data: { username: string; email: string; password: string; role: string }) {
+  return api.post<StaffUser>('/system/users/', data)
+}
+
+export function updateUser(id: string, data: { username?: string; email?: string; password?: string; role?: string; is_active?: boolean }) {
+  return api.put<StaffUser>(`/system/users/${id}`, data)
+}
+
+export function deleteUser(id: string) {
+  return api.delete(`/system/users/${id}`)
+}
+
+export function getOrganizations() {
+  return api.get<StaffUser[]>('/system/organizations/')
+}

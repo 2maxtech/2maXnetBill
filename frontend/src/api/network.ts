@@ -1,77 +1,92 @@
-import client from './client';
+import api from './client'
 
 export interface PppoeSession {
-  '.id': string;
-  name: string;
-  service: string;
-  'caller-id': string;
-  address: string;
-  uptime: string;
-  encoding: string;
+  '.id': string
+  name: string
+  service: string
+  'caller-id': string
+  address: string
+  uptime: string
+  encoding: string
 }
 
 export interface NetworkStatus {
-  connected: boolean;
-  identity?: string;
-  uptime?: string;
-  cpu_load?: string;
-  free_memory?: string;
-  error?: string;
+  connected: boolean
+  identity: string
+  uptime: string
+  cpu_load: number
+  free_memory: number
+  total_memory: number
 }
-
-export const getActiveSessions = () =>
-  client.get<{ sessions: PppoeSession[]; total: number }>('/network/active-sessions');
-
-export const getNetworkStatus = () =>
-  client.get<NetworkStatus>('/network/status');
-
-export const getSubscribers = () =>
-  client.get<{ subscribers: any[]; total: number }>('/network/subscribers');
 
 export interface DashboardData {
   subscribers: {
-    total: number;
-    active: number;
-    suspended: number;
-    disconnected: number;
-  };
+    total: number
+    active: number
+    suspended: number
+    disconnected: number
+  }
   billing: {
-    mrr: number;
-    billed_this_month: number;
-    collected_this_month: number;
-    collection_rate: number;
-    overdue_count: number;
-    overdue_amount: number;
-  };
+    mrr: number
+    billed_this_month: number
+    collected_this_month: number
+    collection_rate: number
+    overdue_count: number
+    overdue_amount: number
+  }
   recent_payments: Array<{
-    id: string;
-    amount: string;
-    method: string;
-    received_at: string | null;
-  }>;
+    id: string
+    customer_name: string
+    amount: number
+    method: string
+    received_at: string
+  }>
   revenue_trend: Array<{
-    month: string;
-    collected: number;
-  }>;
+    month: string
+    billed: number
+    collected: number
+  }>
   mikrotik: {
-    connected: boolean;
-    identity: string;
-    uptime: string;
-    cpu_load: string;
-    free_memory: number;
-    total_memory: number;
-    active_sessions: number;
-    version: string;
-    interfaces: Array<{
-      name: string;
-      type: string;
-      running: boolean;
-      rx_bytes: number;
-      tx_bytes: number;
-    }>;
-    error?: string;
-  };
+    connected: boolean
+    identity: string
+    uptime: string
+    cpu_load: number
+    free_memory: number
+    total_memory: number
+    active_sessions: number
+    version: string
+    interfaces?: Array<{ name: string; type?: string; running?: boolean; tx_bytes: number; rx_bytes: number }>
+  }
 }
 
-export const getDashboard = () =>
-  client.get<DashboardData>('/network/dashboard');
+export function getDashboard() {
+  return api.get<DashboardData>('/network/dashboard')
+}
+
+export function getActiveSessions(routerId?: string) {
+  return api.get<PppoeSession[]>('/network/active-sessions', { params: routerId ? { router_id: routerId } : {} })
+}
+
+export function getNetworkStatus() {
+  return api.get<NetworkStatus>('/network/status')
+}
+
+export function getSubscribers() {
+  return api.get('/network/subscribers')
+}
+
+export function importSubscribers() {
+  return api.post('/network/import')
+}
+
+export function scanNetwork(data: { subnet: string; timeout?: number }) {
+  return api.post('/network/scan', data)
+}
+
+export function getHotspotUsers(routerId?: string) {
+  return api.get('/network/hotspot/users', { params: routerId ? { router_id: routerId } : {} })
+}
+
+export function getHotspotSessions(routerId?: string) {
+  return api.get('/network/hotspot/sessions', { params: routerId ? { router_id: routerId } : {} })
+}

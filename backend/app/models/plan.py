@@ -1,6 +1,8 @@
+import uuid
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
@@ -18,3 +20,4 @@ class Plan(BaseModel):
     data_cap_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fup_download_mbps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fup_upload_mbps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

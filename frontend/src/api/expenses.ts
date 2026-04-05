@@ -1,19 +1,37 @@
-import client from './client';
+import api from './client'
 
 export interface ExpenseType {
-  id: string;
-  category: string;
-  description: string;
-  amount: string;
-  date: string;
-  receipt_number: string | null;
-  recorded_by: string | null;
-  created_at: string;
+  id: string
+  category: string
+  description: string
+  amount: number | string
+  date: string
+  receipt_number: string | null
+  recorded_by: string | null
+  created_at: string
 }
 
-export const getExpenses = (params?: any) =>
-  client.get<{ items: ExpenseType[]; total: number }>('/expenses/', { params });
-export const createExpense = (data: any) => client.post<ExpenseType>('/expenses/', data);
-export const updateExpense = (id: string, data: any) => client.put<ExpenseType>(`/expenses/${id}`, data);
-export const deleteExpense = (id: string) => client.delete(`/expenses/${id}`);
-export const getExpenseSummary = (params?: any) => client.get('/expenses/summary', { params });
+export interface ExpenseSummary {
+  category: string
+  total: number
+}
+
+export function getExpenses(params?: { page?: number; page_size?: number; category?: string; date_from?: string; date_to?: string }) {
+  return api.get<{ items: ExpenseType[]; total: number }>('/expenses/', { params })
+}
+
+export function createExpense(data: Partial<ExpenseType>) {
+  return api.post<ExpenseType>('/expenses/', data)
+}
+
+export function updateExpense(id: string, data: Partial<ExpenseType>) {
+  return api.put<ExpenseType>(`/expenses/${id}`, data)
+}
+
+export function deleteExpense(id: string) {
+  return api.delete(`/expenses/${id}`)
+}
+
+export function getExpenseSummary(params?: { date_from?: string; date_to?: string }) {
+  return api.get<ExpenseSummary[]>('/expenses/summary', { params })
+}

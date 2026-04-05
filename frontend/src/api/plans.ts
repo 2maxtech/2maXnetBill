@@ -1,18 +1,35 @@
-import client from './client';
+import api from './client'
 
 export interface Plan {
-  id: string;
-  name: string;
-  download_mbps: number;
-  upload_mbps: number;
-  monthly_price: string;
-  description: string | null;
-  is_active: boolean;
-  created_at: string;
+  id: string
+  name: string
+  download_mbps: number
+  upload_mbps: number
+  monthly_price: number | string
+  description: string | null
+  is_active: boolean
+  data_cap_gb: number | null
+  fup_download_mbps: number | null
+  fup_upload_mbps: number | null
+  created_at: string
 }
 
-export const getPlans = (params?: { active_only?: boolean }) => client.get<Plan[]>('/plans/', { params });
-export const getPlan = (id: string) => client.get<Plan>(`/plans/${id}`);
-export const createPlan = (data: Record<string, unknown>) => client.post('/plans/', data);
-export const updatePlan = (id: string, data: Record<string, unknown>) => client.put(`/plans/${id}`, data);
-export const deletePlan = (id: string) => client.delete(`/plans/${id}`);
+export function getPlans(params?: { active_only?: boolean }) {
+  return api.get<Plan[]>('/plans/', { params })
+}
+
+export function getPlan(id: string) {
+  return api.get<Plan>(`/plans/${id}`)
+}
+
+export function createPlan(data: Partial<Plan>) {
+  return api.post<Plan>('/plans/', data)
+}
+
+export function updatePlan(id: string, data: Partial<Plan>) {
+  return api.put<Plan>(`/plans/${id}`, data)
+}
+
+export function deletePlan(id: string) {
+  return api.delete(`/plans/${id}`)
+}

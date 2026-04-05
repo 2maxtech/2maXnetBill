@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
+from app.core.tenant import get_tenant_id
 from app.models.customer import Customer, CustomerStatus
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.payment import Payment
@@ -49,15 +50,19 @@ router = APIRouter(prefix="/network", tags=["network"])
 async def get_dashboard(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Aggregated dashboard stats — MikroTik live data + billing summary."""
+    tid = uuid.UUID(tenant_id)
     today = date.today()
     this_month_start = today.replace(day=1)
     month_start_dt = datetime(this_month_start.year, this_month_start.month, 1, tzinfo=timezone.utc)
 
     # --- DB Stats (parallel queries) ---
     customers_by_status = await db.execute(
-        select(Customer.status, func.count(Customer.id)).group_by(Customer.status)
+        select(Customer.status, func.count(Customer.id))
+        .where(Customer.owner_id == tid)
+        .group_by(Customer.status)
     )
     status_counts = {row[0].value: row[1] for row in customers_by_status}
 
@@ -70,7 +75,7 @@ async def get_dashboard(
     mrr_result = await db.execute(
         select(func.coalesce(func.sum(Plan.monthly_price), 0))
         .join(Customer, Customer.plan_id == Plan.id)
-        .where(Customer.status == CustomerStatus.active)
+        .where(Customer.status == CustomerStatus.active, Customer.owner_id == tid)
     )
     mrr = float(mrr_result.scalar() or 0)
 
@@ -78,6 +83,7 @@ async def get_dashboard(
     billed_result = await db.execute(
         select(func.coalesce(func.sum(Invoice.amount), 0)).where(
             and_(
+                Invoice.owner_id == tid,
                 Invoice.issued_at >= month_start_dt,
                 Invoice.status != InvoiceStatus.void,
             )
@@ -87,7 +93,10 @@ async def get_dashboard(
 
     collected_result = await db.execute(
         select(func.coalesce(func.sum(Payment.amount), 0)).where(
-            Payment.received_at >= month_start_dt,
+            and_(
+                Payment.owner_id == tid,
+                Payment.received_at >= month_start_dt,
+            )
         )
     )
     collected_this_month = float(collected_result.scalar() or 0)
@@ -95,7 +104,10 @@ async def get_dashboard(
     # Overdue
     overdue_result = await db.execute(
         select(func.count(Invoice.id), func.coalesce(func.sum(Invoice.amount), 0)).where(
-            Invoice.status == InvoiceStatus.overdue
+            and_(
+                Invoice.owner_id == tid,
+                Invoice.status == InvoiceStatus.overdue,
+            )
         )
     )
     overdue_row = overdue_result.one()
@@ -105,6 +117,7 @@ async def get_dashboard(
     # Recent payments (last 5)
     recent_payments_result = await db.execute(
         select(Payment)
+        .where(Payment.owner_id == tid)
         .order_by(Payment.received_at.desc())
         .limit(5)
     )
@@ -134,7 +147,7 @@ async def get_dashboard(
 
         month_collected = await db.execute(
             select(func.coalesce(func.sum(Payment.amount), 0)).where(
-                and_(Payment.received_at >= m_start, Payment.received_at < m_end)
+                and_(Payment.owner_id == tid, Payment.received_at >= m_start, Payment.received_at < m_end)
             )
         )
         revenue_trend.append({
@@ -142,7 +155,8 @@ async def get_dashboard(
             "collected": float(month_collected.scalar() or 0),
         })
 
-    # --- MikroTik Live Stats ---
+    # --- MikroTik Live Stats (from tenant's first router) ---
+    from app.models.router import Router
     mt_stats = {
         "connected": False,
         "identity": "",
@@ -153,37 +167,44 @@ async def get_dashboard(
         "active_sessions": 0,
         "interfaces": [],
     }
-    try:
-        identity = await mikrotik.get_identity()
-        resources = await mikrotik.get_resources()
-        sessions = await mikrotik.get_active_sessions()
+    router_result = await db.execute(select(Router).where(Router.owner_id == tid, Router.is_active == True).limit(1))
+    tenant_router = router_result.scalar_one_or_none()
+    if tenant_router:
+        mt_client = get_mikrotik_client(str(tenant_router.id), tenant_router.url, tenant_router.username, tenant_router.password)
+        try:
+            identity = await mt_client.get_identity()
+            resources = await mt_client.get_resources()
+            all_sessions = await mt_client.get_active_sessions()
+            # Filter to only this tenant's customers
+            cust_result = await db.execute(select(Customer.pppoe_username).where(Customer.owner_id == tid))
+            my_usernames = {row[0] for row in cust_result.all()}
+            sessions = [s for s in all_sessions if s.get("name") in my_usernames]
 
-        # Interface traffic
-        interfaces_resp = await mikrotik._request("GET", "interface")
-        interfaces = []
-        for iface in interfaces_resp.json():
-            if iface.get("type") in ("ether", "pppoe-in"):
-                interfaces.append({
-                    "name": iface.get("name", ""),
-                    "type": iface.get("type", ""),
-                    "running": iface.get("running", "false") == "true",
-                    "rx_bytes": int(iface.get("rx-byte", 0)),
-                    "tx_bytes": int(iface.get("tx-byte", 0)),
-                })
+            interfaces_resp = await mt_client._request("GET", "interface")
+            interfaces = []
+            for iface in interfaces_resp.json():
+                if iface.get("type") in ("ether", "pppoe-in"):
+                    interfaces.append({
+                        "name": iface.get("name", ""),
+                        "type": iface.get("type", ""),
+                        "running": iface.get("running", "false") == "true",
+                        "rx_bytes": int(iface.get("rx-byte", 0)),
+                        "tx_bytes": int(iface.get("tx-byte", 0)),
+                    })
 
-        mt_stats = {
-            "connected": True,
-            "identity": identity,
-            "uptime": resources.get("uptime", ""),
-            "cpu_load": resources.get("cpu-load", "0"),
-            "free_memory": int(resources.get("free-memory", 0)),
-            "total_memory": int(resources.get("total-memory", 0)),
-            "active_sessions": len(sessions),
-            "interfaces": interfaces,
-            "version": resources.get("version", ""),
-        }
-    except Exception as e:
-        mt_stats["error"] = str(e)
+            mt_stats = {
+                "connected": True,
+                "identity": identity,
+                "uptime": resources.get("uptime", ""),
+                "cpu_load": resources.get("cpu-load", "0"),
+                "free_memory": int(resources.get("free-memory", 0)),
+                "total_memory": int(resources.get("total-memory", 0)),
+                "active_sessions": len(sessions),
+                "interfaces": interfaces,
+                "version": resources.get("version", ""),
+            }
+        except Exception as e:
+            mt_stats["error"] = str(e)
 
     return {
         "subscribers": {
@@ -207,21 +228,54 @@ async def get_dashboard(
 
 
 @router.get("/active-sessions")
-async def get_active_sessions(current_user: User = Depends(get_current_user)):
-    """Get active PPPoE sessions from MikroTik."""
-    try:
-        sessions = await mikrotik.get_active_sessions()
-        return {"sessions": sessions, "total": len(sessions)}
-    except Exception as e:
-        return {"sessions": [], "total": 0, "error": str(e)}
+async def get_active_sessions(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Get active PPPoE sessions from tenant's routers, filtered to tenant's customers only."""
+    from app.models.router import Router
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.owner_id == tid, Router.is_active == True))
+    routers = result.scalars().all()
+    if not routers:
+        return {"sessions": [], "total": 0}
+
+    # Get tenant's customer usernames for filtering
+    cust_result = await db.execute(select(Customer.pppoe_username).where(Customer.owner_id == tid))
+    tenant_usernames = {row[0] for row in cust_result.all()}
+
+    all_sessions = []
+    for r in routers:
+        try:
+            client = get_mikrotik_client(str(r.id), r.url, r.username, r.password)
+            sessions = await client.get_active_sessions()
+            # Only include sessions belonging to this tenant's customers
+            for s in sessions:
+                if s.get("name") in tenant_usernames:
+                    all_sessions.append(s)
+        except Exception:
+            pass
+    return {"sessions": all_sessions, "total": len(all_sessions)}
 
 
 @router.get("/status")
-async def get_network_status(current_user: User = Depends(get_current_user)):
-    """Check MikroTik connectivity."""
+async def get_network_status(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Check MikroTik connectivity for tenant's first router."""
+    from app.models.router import Router
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.owner_id == tid, Router.is_active == True).limit(1))
+    r = result.scalar_one_or_none()
+    if not r:
+        return {"connected": False, "error": "No router configured"}
+    client = get_mikrotik_client(str(r.id), r.url, r.username, r.password)
     try:
-        identity = await mikrotik.get_identity()
-        resources = await mikrotik.get_resources()
+        identity = await client.get_identity()
+        resources = await client.get_resources()
         return {
             "connected": True,
             "identity": identity,
@@ -234,7 +288,7 @@ async def get_network_status(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/subscribers")
-async def get_subscribers(current_user: User = Depends(get_current_user)):
+async def get_subscribers(current_user: User = Depends(get_current_user), tenant_id: str = Depends(get_tenant_id)):
     """List PPPoE secrets from MikroTik."""
     try:
         secrets = await mikrotik.get_secrets()
@@ -247,6 +301,7 @@ async def get_subscribers(current_user: User = Depends(get_current_user)):
 async def import_from_mikrotik(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Import existing PPPoE secrets and profiles from MikroTik into NetLedger.
 
@@ -266,14 +321,16 @@ async def import_from_mikrotik(
         if p.get("rate-limit"):
             profile_rates[p["name"]] = p["rate-limit"]
 
+    tid = uuid.UUID(tenant_id)
+
     # Get existing customers to skip duplicates
-    existing_result = await db.execute(select(Customer))
+    existing_result = await db.execute(select(Customer).where(Customer.owner_id == tid))
     existing_customers = existing_result.scalars().all()
     existing_usernames = {c.pppoe_username for c in existing_customers}
     existing_secret_ids = {c.mikrotik_secret_id for c in existing_customers if c.mikrotik_secret_id}
 
     # Get existing plans to avoid duplicates
-    existing_plans_result = await db.execute(select(Plan))
+    existing_plans_result = await db.execute(select(Plan).where(Plan.owner_id == tid))
     existing_plans = existing_plans_result.scalars().all()
     existing_plan_names = {p.name for p in existing_plans}
 
@@ -301,6 +358,7 @@ async def import_from_mikrotik(
             monthly_price=Decimal("0.00"),  # Admin sets pricing later
             description=f"Imported from MikroTik profile '{profile_name}'",
             is_active=True,
+            owner_id=tid,
         )
         db.add(plan)
         await db.flush()
@@ -361,6 +419,7 @@ async def import_from_mikrotik(
             plan_id=plan.id,
             mikrotik_secret_id=secret_id,
             mac_address=secret.get("caller-id") or None,
+            owner_id=tid,
         )
         db.add(customer)
         existing_usernames.add(username)
@@ -381,6 +440,7 @@ async def import_from_mikrotik(
 async def scan_network(
     body: dict,
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Scan a subnet for MikroTik devices."""
     import asyncio
@@ -428,9 +488,11 @@ async def get_hotspot_users(
     router_id: uuid.UUID = Query(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     from app.models.router import Router
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if not r:
         return {"users": [], "error": "Router not found"}
@@ -447,9 +509,11 @@ async def get_hotspot_sessions(
     router_id: uuid.UUID = Query(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     from app.models.router import Router
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if not r:
         return {"sessions": [], "error": "Router not found"}

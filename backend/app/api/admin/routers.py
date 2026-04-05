@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
+from app.core.tenant import get_tenant_id
 from app.models.customer import Customer, CustomerStatus
 from app.models.plan import Plan
 from app.models.router import Router
@@ -21,8 +22,10 @@ router = APIRouter(prefix="/routers", tags=["routers"])
 async def list_routers(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Router).order_by(Router.created_at))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.owner_id == tid).order_by(Router.created_at))
     return result.scalars().all()
 
 
@@ -31,8 +34,14 @@ async def create_router(
     body: RouterCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    r = Router(**body.model_dump())
+    data = body.model_dump()
+    # Auto-prepend http:// if no protocol specified
+    if data.get("url") and not data["url"].startswith(("http://", "https://")):
+        data["url"] = "http://" + data["url"]
+    r = Router(**data)
+    r.owner_id = uuid.UUID(tenant_id)
     db.add(r)
     await db.flush()
     await db.refresh(r)
@@ -44,8 +53,10 @@ async def get_router(
     router_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if r is None:
         raise HTTPException(status_code=404, detail="Router not found")
@@ -58,13 +69,18 @@ async def update_router(
     body: RouterUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if r is None:
         raise HTTPException(status_code=404, detail="Router not found")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    update_data = body.model_dump(exclude_unset=True)
+    if "url" in update_data and update_data["url"] and not update_data["url"].startswith(("http://", "https://")):
+        update_data["url"] = "http://" + update_data["url"]
+    for field, value in update_data.items():
         setattr(r, field, value)
 
     invalidate_client(str(router_id))
@@ -78,8 +94,10 @@ async def delete_router(
     router_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if r is None:
         raise HTTPException(status_code=404, detail="Router not found")
@@ -93,8 +111,10 @@ async def get_router_status(
     router_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if r is None:
         raise HTTPException(status_code=404, detail="Router not found")
@@ -125,9 +145,11 @@ async def import_from_router(
     router_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Import PPPoE secrets and profiles from a specific router into NetLedger."""
-    result = await db.execute(select(Router).where(Router.id == router_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Router).where(Router.id == router_id, Router.owner_id == tid))
     r = result.scalar_one_or_none()
     if r is None:
         raise HTTPException(status_code=404, detail="Router not found")
@@ -146,14 +168,14 @@ async def import_from_router(
         if p.get("rate-limit"):
             profile_rates[p["name"]] = p["rate-limit"]
 
-    # Get existing customers to skip duplicates
-    existing_result = await db.execute(select(Customer))
+    # Get this tenant's existing customers to avoid duplicates within the same tenant
+    existing_result = await db.execute(select(Customer).where(Customer.owner_id == tid))
     existing_customers = existing_result.scalars().all()
     existing_usernames = {c.pppoe_username for c in existing_customers}
     existing_secret_ids = {c.mikrotik_secret_id for c in existing_customers if c.mikrotik_secret_id}
 
     # Get existing plans
-    plans_result = await db.execute(select(Plan))
+    plans_result = await db.execute(select(Plan).where(Plan.owner_id == tid))
     existing_plans_list = plans_result.scalars().all()
     existing_plans = {p.name: p for p in existing_plans_list}
 
@@ -188,6 +210,7 @@ async def import_from_router(
             monthly_price=Decimal("0.00"),
             is_active=True,
             description=f"Imported from MikroTik",
+            owner_id=tid,
         )
         db.add(plan)
         await db.flush()
@@ -223,6 +246,7 @@ async def import_from_router(
             mikrotik_secret_id=secret_id,
             mac_address=secret.get("caller-id") or None,
             router_id=router_id,
+            owner_id=tid,
         )
         db.add(customer)
         existing_usernames.add(username)

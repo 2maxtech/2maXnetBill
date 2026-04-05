@@ -1,66 +1,73 @@
-import axios from 'axios';
-
-const portalClient = axios.create({
-  baseURL: '/api/v1/portal',
-  headers: { 'Content-Type': 'application/json' },
-});
-
-portalClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('portal_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-portalClient.interceptors.response.use(
-  (r) => r,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('portal_token');
-      localStorage.removeItem('portal_customer');
-      window.location.href = '/portal/login';
-    }
-    return Promise.reject(error);
-  },
-);
+import { portalApi } from './client'
 
 export interface PortalCustomer {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  status: string;
-  plan_name: string | null;
+  id: string
+  full_name: string
+  email: string
+  phone: string
+  status: string
+  plan_name: string
 }
 
-export interface DashboardData {
-  status: string;
-  plan: { name: string; download_mbps: number; upload_mbps: number } | null;
-  outstanding_balance: string;
-  session: { ip_address: string; started_at: string; bytes_in: number; bytes_out: number } | null;
-  recent_invoices: Array<{ id: string; amount: string; due_date: string; status: string }>;
+export interface PortalDashboard {
+  status: string
+  plan: { name: string; download_mbps: number; upload_mbps: number; monthly_price: number }
+  outstanding_balance: number
+  session: { address: string; uptime: string; bytes_in: number; bytes_out: number } | null
+  recent_invoices: Array<{ id: string; amount: number; due_date: string; status: string }>
 }
 
 export interface PortalInvoice {
-  id: string;
-  amount: string;
-  due_date: string;
-  status: string;
-  issued_at: string;
-  paid_at: string | null;
-  plan_name: string | null;
-  total_paid: string;
+  id: string
+  amount: number | string
+  total_paid: number | string
+  due_date: string
+  status: string
+  issued_at: string
+  paid_at: string | null
+  plan_name: string
 }
 
-export const portalLogin = (email: string, password: string) =>
-  portalClient.post('/auth/login', { email, password });
+export function portalLogin(email: string, password: string) {
+  return portalApi.post('/auth/login', { email, password })
+}
 
-export const getPortalMe = () => portalClient.get<PortalCustomer>('/me');
-export const getPortalDashboard = () => portalClient.get<DashboardData>('/dashboard');
-export const getPortalInvoices = (params: { page?: number; size?: number }) =>
-  portalClient.get<{ items: PortalInvoice[]; total: number; page: number; page_size: number }>('/invoices', { params });
-export const downloadPortalInvoicePdf = (id: string) =>
-  portalClient.get(`/invoices/${id}/pdf`, { responseType: 'blob' });
-export const getPortalUsage = (days?: number) =>
-  portalClient.get<Array<{ date: string; bytes_in: number; bytes_out: number; peak_download_mbps: string; peak_upload_mbps: string }>>('/usage', { params: { days: days || 30 } });
-export const getPortalSessions = (params: { page?: number; size?: number }) =>
-  portalClient.get<Array<{ id: string; ip_address: string; mac_address: string; started_at: string; ended_at: string | null; bytes_in: number; bytes_out: number }>>('/sessions', { params });
+export function getPortalMe() {
+  return portalApi.get<PortalCustomer>('/me')
+}
+
+export function getPortalDashboard() {
+  return portalApi.get<PortalDashboard>('/dashboard')
+}
+
+export function getPortalInvoices(params?: { page?: number; size?: number }) {
+  return portalApi.get<{ items: PortalInvoice[]; total: number }>('/invoices', { params })
+}
+
+export function downloadPortalInvoicePdf(id: string) {
+  return portalApi.get(`/invoices/${id}/pdf`, { responseType: 'blob' })
+}
+
+export function getPortalUsage(days?: number) {
+  return portalApi.get('/usage', { params: { days } })
+}
+
+export function getPortalSessions(params?: { page?: number; size?: number }) {
+  return portalApi.get('/sessions', { params })
+}
+
+export function getPortalTickets() {
+  return portalApi.get('/tickets')
+}
+
+export function createPortalTicket(data: { subject: string; message: string; priority?: string }) {
+  return portalApi.post('/tickets', data)
+}
+
+export function getPortalTicket(id: string) {
+  return portalApi.get(`/tickets/${id}`)
+}
+
+export function addPortalTicketMessage(id: string, data: { message: string }) {
+  return portalApi.post(`/tickets/${id}/messages`, data)
+}

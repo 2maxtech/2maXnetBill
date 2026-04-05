@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.tenant import get_tenant_id
 from app.models.ticket import Ticket, TicketMessage, TicketPriority, TicketStatus
 from app.models.user import User
 from app.schemas.ticket import (
@@ -27,8 +28,10 @@ async def list_tickets(
     assigned_to: uuid.UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Ticket)
+    tid = uuid.UUID(tenant_id)
+    query = select(Ticket).where(Ticket.owner_id == tid)
 
     if ticket_status:
         query = query.where(Ticket.status == ticket_status)
@@ -47,12 +50,15 @@ async def create_ticket(
     body: TicketCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
+    tid = uuid.UUID(tenant_id)
     ticket = Ticket(
         customer_id=body.customer_id,
         subject=body.subject,
         priority=body.priority,
         status=TicketStatus.open,
+        owner_id=tid,
     )
     db.add(ticket)
     await db.flush()
@@ -64,6 +70,7 @@ async def create_ticket(
         sender_type="staff",
         sender_id=current_user.id,
         message=body.message,
+        owner_id=tid,
     )
     db.add(message)
     await db.flush()
@@ -76,8 +83,10 @@ async def get_ticket(
     ticket_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.owner_id == tid))
     ticket = result.scalar_one_or_none()
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -90,8 +99,10 @@ async def update_ticket(
     body: TicketUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.owner_id == tid))
     ticket = result.scalar_one_or_none()
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -114,8 +125,10 @@ async def add_ticket_message(
     body: TicketMessageCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id, Ticket.owner_id == tid))
     ticket = result.scalar_one_or_none()
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -125,6 +138,7 @@ async def add_ticket_message(
         sender_type="staff",
         sender_id=current_user.id,
         message=body.message,
+        owner_id=tid,
     )
     db.add(message)
     await db.flush()

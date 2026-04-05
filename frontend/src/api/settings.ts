@@ -1,9 +1,64 @@
-import client from './client';
+import api from './client'
 
-export const getSmtpSettings = () => client.get('/settings/smtp');
-export const saveSmtpSettings = (data: any) => client.put('/settings/smtp', data);
-export const testSmtp = (data: any) => client.post('/settings/smtp/test', data);
+export interface SmtpSettings {
+  smtp_host: string
+  smtp_port: number
+  smtp_user: string
+  smtp_password: string
+  smtp_from: string
+  smtp_from_name: string
+}
 
-export const getSmsSettings = () => client.get('/settings/sms');
-export const saveSmsSettings = (data: any) => client.put('/settings/sms', data);
-export const testSms = (data: any) => client.post('/settings/sms/test', data);
+export interface SmsSettings {
+  sms_provider: string
+  sms_api_key: string
+  sms_sender_name: string
+}
+
+export function getSmtpSettings() {
+  return api.get<SmtpSettings>('/settings/smtp')
+}
+
+export function saveSmtpSettings(data: SmtpSettings) {
+  return api.put('/settings/smtp', data)
+}
+
+export function testSmtp(data: { to: string }) {
+  return api.post('/settings/smtp/test', data)
+}
+
+export function getSmsSettings() {
+  return api.get<SmsSettings>('/settings/sms')
+}
+
+export function saveSmsSettings(data: SmsSettings) {
+  return api.put('/settings/sms', data)
+}
+
+export function testSms(data: { phone: string }) {
+  return api.post('/settings/sms/test', data)
+}
+
+export interface BrandingSettings {
+  company_name: string
+  company_address: string
+  company_phone: string
+  company_email: string
+  company_logo_url: string
+  invoice_footer: string
+  invoice_prefix: string
+}
+
+export function getBrandingSettings() {
+  return api.get<BrandingSettings>('/settings/branding')
+}
+
+export function saveBrandingSettings(data: Record<string, string>) {
+  return api.put('/settings/branding', data)
+}
+
+export function uploadLogo(formData: FormData) {
+  return api.post<{ status: string; url: string }>('/settings/branding/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}

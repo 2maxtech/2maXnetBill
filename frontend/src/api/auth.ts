@@ -1,9 +1,44 @@
-import client from './client';
+import api from './client'
 
-export interface LoginRequest { username: string; password: string; }
-export interface TokenResponse { access_token: string; refresh_token: string; token_type: string; }
-export interface User { id: string; username: string; email: string; role: 'admin' | 'billing' | 'technician'; is_active: boolean; created_at: string; }
+export interface User {
+  id: string
+  username: string
+  email: string
+  full_name: string | null
+  company_name: string | null
+  phone: string | null
+  role: 'super_admin' | 'admin' | 'billing' | 'technician'
+  is_active: boolean
+  created_at: string
+}
 
-export const login = (data: LoginRequest) => client.post<TokenResponse>('/auth/login', data);
-export const refreshToken = (refresh_token: string) => client.post<TokenResponse>('/auth/refresh', { refresh_token });
-export const getMe = () => client.get<User>('/auth/me');
+export interface TokenResponse {
+  access_token: string
+  refresh_token: string
+  token_type: string
+}
+
+export interface RegisterPayload {
+  company_name: string
+  full_name: string
+  email: string
+  phone: string
+  username: string
+  password: string
+}
+
+export function login(username: string, password: string) {
+  return api.post<TokenResponse>('/auth/login', { username, password })
+}
+
+export function refreshToken(refresh_token: string) {
+  return api.post<TokenResponse>('/auth/refresh', { refresh_token })
+}
+
+export function getMe() {
+  return api.get<User>('/auth/me')
+}
+
+export function register(data: RegisterPayload) {
+  return api.post<{ id: string; username: string; email: string; message: string; email_sent: boolean }>('/auth/register', data)
+}

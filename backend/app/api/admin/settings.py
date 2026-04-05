@@ -1,13 +1,16 @@
 import logging
+import os
 import smtplib
+import uuid
 from email.mime.text import MIMEText
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
+from app.core.tenant import get_tenant_id
 from app.models.app_setting import AppSetting
 from app.models.user import User
 
@@ -18,17 +21,27 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 SMTP_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from", "smtp_from_name"]
 
 
-async def save_setting(db: AsyncSession, key: str, value: str) -> None:
-    result = await db.execute(select(AppSetting).where(AppSetting.key == key))
+async def save_setting(db: AsyncSession, key: str, value: str, tenant_id: uuid.UUID | None = None) -> None:
+    query = select(AppSetting).where(AppSetting.key == key)
+    if tenant_id is not None:
+        query = query.where(AppSetting.owner_id == tenant_id)
+    else:
+        query = query.where(AppSetting.owner_id.is_(None))
+    result = await db.execute(query)
     setting = result.scalar_one_or_none()
     if setting:
         setting.value = value
     else:
-        db.add(AppSetting(key=key, value=value))
+        db.add(AppSetting(key=key, value=value, owner_id=tenant_id))
 
 
-async def get_smtp_settings(db: AsyncSession) -> dict:
-    result = await db.execute(select(AppSetting).where(AppSetting.key.in_(SMTP_KEYS)))
+async def get_smtp_settings(db: AsyncSession, tenant_id: uuid.UUID | None = None) -> dict:
+    query = select(AppSetting).where(AppSetting.key.in_(SMTP_KEYS))
+    if tenant_id is not None:
+        query = query.where(AppSetting.owner_id == tenant_id)
+    else:
+        query = query.where(AppSetting.owner_id.is_(None))
+    result = await db.execute(query)
     return {s.key: s.value for s in result.scalars().all()}
 
 
@@ -36,9 +49,11 @@ async def get_smtp_settings(db: AsyncSession) -> dict:
 async def get_smtp(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Get SMTP settings (password masked)."""
-    settings = await get_smtp_settings(db)
+    tid = uuid.UUID(tenant_id)
+    settings = await get_smtp_settings(db, tenant_id=tid)
     if "smtp_password" in settings and settings["smtp_password"]:
         settings["smtp_password"] = "********"
     return settings
@@ -49,11 +64,13 @@ async def update_smtp(
     body: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Save SMTP settings."""
+    tid = uuid.UUID(tenant_id)
     allowed = {k: v for k, v in body.items() if k in SMTP_KEYS}
     for key, value in allowed.items():
-        await save_setting(db, key, str(value))
+        await save_setting(db, key, str(value), tenant_id=tid)
     await db.flush()
     return {"status": "saved", "keys_updated": list(allowed.keys())}
 
@@ -63,13 +80,15 @@ async def test_smtp(
     body: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Send a test email using stored SMTP settings."""
+    tid = uuid.UUID(tenant_id)
     to_email = body.get("to")
     if not to_email:
         raise HTTPException(status_code=400, detail="'to' email address required")
 
-    settings = await get_smtp_settings(db)
+    settings = await get_smtp_settings(db, tenant_id=tid)
     host = settings.get("smtp_host", "")
     port = int(settings.get("smtp_port", 587))
     user = settings.get("smtp_user", "")
@@ -104,9 +123,11 @@ async def test_smtp(
 async def get_sms(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Get SMS settings (api_key masked)."""
-    result = await db.execute(select(AppSetting).where(AppSetting.key.like("sms_%")))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(AppSetting).where(AppSetting.key.like("sms_%"), AppSetting.owner_id == tid))
     sms = {s.key: s.value for s in result.scalars().all()}
     return {
         "provider": sms.get("sms_provider", ""),
@@ -120,8 +141,10 @@ async def update_sms(
     body: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Save SMS settings."""
+    tid = uuid.UUID(tenant_id)
     mapping = {
         "provider": "sms_provider",
         "api_key": "sms_api_key",
@@ -129,7 +152,7 @@ async def update_sms(
     }
     for field, key in mapping.items():
         if field in body:
-            await save_setting(db, key, str(body[field]))
+            await save_setting(db, key, str(body[field]), tenant_id=tid)
     await db.flush()
     return {"status": "saved"}
 
@@ -139,11 +162,91 @@ async def test_sms_endpoint(
     body: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     """Send a test SMS using stored SMS settings."""
     from app.services.sms import send_sms
     phone = body.get("phone", "")
     if not phone:
         raise HTTPException(status_code=400, detail="phone required")
-    success = await send_sms(phone, "NetLedger SMS test", db)
+    tid = uuid.UUID(tenant_id)
+    success = await send_sms(phone, "NetLedger SMS test", db, tenant_id=tid)
     return {"success": success}
+
+
+# --- Branding / Company Profile ---
+
+BRANDING_KEYS = [
+    "company_name",
+    "company_address",
+    "company_phone",
+    "company_email",
+    "company_logo_url",
+    "invoice_footer",
+    "invoice_prefix",
+]
+
+
+async def get_branding_settings(db: AsyncSession, tenant_id: uuid.UUID | None = None) -> dict:
+    query = select(AppSetting).where(AppSetting.key.in_(BRANDING_KEYS))
+    if tenant_id is not None:
+        query = query.where(AppSetting.owner_id == tenant_id)
+    else:
+        query = query.where(AppSetting.owner_id.is_(None))
+    result = await db.execute(query)
+    return {s.key: s.value for s in result.scalars().all()}
+
+
+@router.get("/branding")
+async def get_branding(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Get company branding settings."""
+    tid = uuid.UUID(tenant_id)
+    return await get_branding_settings(db, tenant_id=tid)
+
+
+@router.put("/branding")
+async def update_branding(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Save company branding settings."""
+    tid = uuid.UUID(tenant_id)
+    allowed = {k: v for k, v in body.items() if k in BRANDING_KEYS}
+    for key, value in allowed.items():
+        await save_setting(db, key, str(value), tenant_id=tid)
+    await db.flush()
+    return {"status": "saved", "keys_updated": list(allowed.keys())}
+
+
+@router.post("/branding/logo")
+async def upload_logo(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Upload company logo image."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "png"
+    filename = f"logo-{uuid.uuid4().hex[:8]}.{ext}"
+    upload_dir = "/app/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+
+    content = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    tid = uuid.UUID(tenant_id)
+    url = f"/api/v1/uploads/{filename}"
+    await save_setting(db, "company_logo_url", url, tenant_id=tid)
+    await db.flush()
+    return {"status": "uploaded", "url": url}

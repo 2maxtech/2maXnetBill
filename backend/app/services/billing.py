@@ -1,4 +1,5 @@
 import logging
+import uuid as uuid_mod
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -15,7 +16,7 @@ from app.models.payment import Payment
 logger = logging.getLogger(__name__)
 
 
-async def generate_invoice(db: AsyncSession, customer: Customer, billing_period: date) -> Invoice:
+async def generate_invoice(db: AsyncSession, customer: Customer, billing_period: date, owner_id: uuid_mod.UUID | None = None) -> Invoice:
     """Generate an invoice for a customer. Idempotent — skips if one already exists for the period."""
     result = await db.execute(
         select(Invoice).where(
@@ -41,6 +42,7 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
         due_date=due_date,
         status=InvoiceStatus.pending,
         issued_at=datetime.now(timezone.utc),
+        owner_id=owner_id or customer.owner_id,
     )
     db.add(invoice)
     await db.flush()
@@ -48,17 +50,18 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
     return invoice
 
 
-async def generate_monthly_invoices(db: AsyncSession) -> dict:
+async def generate_monthly_invoices(db: AsyncSession, owner_id: uuid_mod.UUID | None = None) -> dict:
     """Generate invoices for all active/suspended customers for the current month."""
     today = date.today()
     billing_period = today.replace(day=1)
 
-    result = await db.execute(
-        select(Customer).where(
-            Customer.status.in_([CustomerStatus.active, CustomerStatus.suspended]),
-            Customer.plan_id.isnot(None),
-        )
+    query = select(Customer).where(
+        Customer.status.in_([CustomerStatus.active, CustomerStatus.suspended]),
+        Customer.plan_id.isnot(None),
     )
+    if owner_id is not None:
+        query = query.where(Customer.owner_id == owner_id)
+    result = await db.execute(query)
     customers = result.scalars().all()
 
     generated = 0
@@ -80,7 +83,7 @@ async def generate_monthly_invoices(db: AsyncSession) -> dict:
                 skipped += 1
                 continue
 
-            await generate_invoice(db, cust, billing_period)
+            await generate_invoice(db, cust, billing_period, owner_id=owner_id)
             generated += 1
         except Exception as e:
             logger.error(f"Failed to generate invoice for customer {cust.id}: {e}")
@@ -97,6 +100,7 @@ async def record_payment(
     reference: str | None,
     received_by=None,
     skip_network: bool = False,
+    owner_id: uuid_mod.UUID | None = None,
 ) -> Payment:
     """Record a payment against an invoice. Auto-reconnects if fully paid and customer was suspended/disconnected."""
     result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
@@ -111,6 +115,7 @@ async def record_payment(
         reference_number=reference,
         received_by=received_by,
         received_at=datetime.now(timezone.utc),
+        owner_id=owner_id or invoice.owner_id,
     )
     db.add(payment)
     await db.flush()
@@ -163,6 +168,7 @@ async def record_payment(
                     reason=DisconnectReason.non_payment,
                     performed_by=None,
                     performed_at=datetime.now(timezone.utc),
+                    owner_id=customer.owner_id,
                 )
                 db.add(log)
 
@@ -234,6 +240,7 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
                     reason=DisconnectReason.non_payment,
                     performed_by=None,
                     performed_at=datetime.now(timezone.utc),
+                    owner_id=customer.owner_id,
                 ))
                 throttled += 1
 
@@ -261,6 +268,7 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
                     reason=DisconnectReason.non_payment,
                     performed_by=None,
                     performed_at=datetime.now(timezone.utc),
+                    owner_id=customer.owner_id,
                 ))
                 disconnected += 1
 
@@ -300,6 +308,7 @@ async def send_billing_reminders(db: AsyncSession) -> int:
             subject="Payment Reminder",
             message=f"Hi {customer.full_name}, your bill of ₱{inv.amount} is due on {inv.due_date}. Please pay before the due date to avoid service interruption.",
             status=NotificationStatus.pending,
+            owner_id=customer.owner_id,
         )
         db.add(notification)
 
@@ -307,26 +316,30 @@ async def send_billing_reminders(db: AsyncSession) -> int:
     return len(invoices)
 
 
-async def get_revenue_summary(db: AsyncSession, start_date: date, end_date: date) -> dict:
+async def get_revenue_summary(db: AsyncSession, start_date: date, end_date: date, owner_id: uuid_mod.UUID | None = None) -> dict:
     """Get revenue summary for a date range."""
+    invoice_filters = [
+        Invoice.issued_at >= datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
+        Invoice.issued_at <= datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc),
+        Invoice.status != InvoiceStatus.void,
+    ]
+    if owner_id is not None:
+        invoice_filters.append(Invoice.owner_id == owner_id)
+
     billed_result = await db.execute(
-        select(func.coalesce(func.sum(Invoice.amount), 0)).where(
-            and_(
-                Invoice.issued_at >= datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
-                Invoice.issued_at <= datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc),
-                Invoice.status != InvoiceStatus.void,
-            )
-        )
+        select(func.coalesce(func.sum(Invoice.amount), 0)).where(and_(*invoice_filters))
     )
     total_billed = billed_result.scalar() or Decimal("0")
 
+    payment_filters = [
+        Payment.received_at >= datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
+        Payment.received_at <= datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc),
+    ]
+    if owner_id is not None:
+        payment_filters.append(Payment.owner_id == owner_id)
+
     collected_result = await db.execute(
-        select(func.coalesce(func.sum(Payment.amount), 0)).where(
-            and_(
-                Payment.received_at >= datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
-                Payment.received_at <= datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc),
-            )
-        )
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(and_(*payment_filters))
     )
     total_collected = collected_result.scalar() or Decimal("0")
 

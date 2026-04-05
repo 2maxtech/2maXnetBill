@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 import httpx
 from sqlalchemy import select
@@ -9,14 +10,19 @@ from app.models.app_setting import AppSetting
 logger = logging.getLogger(__name__)
 
 
-async def get_sms_settings(db: AsyncSession) -> dict:
-    result = await db.execute(select(AppSetting).where(AppSetting.key.like("sms_%")))
+async def get_sms_settings(db: AsyncSession, tenant_id: uuid.UUID | None = None) -> dict:
+    query = select(AppSetting).where(AppSetting.key.like("sms_%"))
+    if tenant_id is not None:
+        query = query.where(AppSetting.owner_id == tenant_id)
+    else:
+        query = query.where(AppSetting.owner_id.is_(None))
+    result = await db.execute(query)
     settings = {s.key: s.value for s in result.scalars().all()}
     return settings
 
 
-async def send_sms(phone: str, message: str, db: AsyncSession) -> bool:
-    settings = await get_sms_settings(db)
+async def send_sms(phone: str, message: str, db: AsyncSession, tenant_id: uuid.UUID | None = None) -> bool:
+    settings = await get_sms_settings(db, tenant_id=tenant_id)
     provider = settings.get("sms_provider", "")
     api_key = settings.get("sms_api_key", "")
 

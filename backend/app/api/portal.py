@@ -17,6 +17,7 @@ from app.models.pppoe_session import PPPoESession
 from app.models.bandwidth_usage import BandwidthUsage
 from app.models.customer_activity import CustomerActivity
 from app.models.ticket import Ticket, TicketMessage
+from app.api.admin.settings import get_branding_settings
 from app.services.pdf import generate_invoice_pdf
 
 from jose import jwt, JWTError
@@ -227,7 +228,8 @@ async def portal_invoice_pdf(
 
     payments = invoice.payments or []
     total_paid = sum(p.amount for p in payments)
-    pdf_bytes = generate_invoice_pdf(invoice, customer, invoice.plan, payments, total_paid)
+    branding = await get_branding_settings(db, tenant_id=customer.owner_id)
+    pdf_bytes = generate_invoice_pdf(invoice, customer, invoice.plan, payments, total_paid, branding=branding)
 
     return Response(
         content=pdf_bytes,

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
+from app.core.tenant import get_tenant_id
 from app.models.customer import Customer
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.notification import Notification, NotificationStatus
@@ -28,6 +29,7 @@ from app.schemas.billing import (
 )
 from app.services import billing as billing_service
 from app.services.audit import log_action
+from app.api.admin.settings import get_branding_settings
 from app.services.pdf import generate_invoice_pdf
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -63,9 +65,11 @@ async def list_invoices(
     size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Invoice)
-    count_query = select(func.count(Invoice.id))
+    tid = uuid.UUID(tenant_id)
+    query = select(Invoice).where(Invoice.owner_id == tid)
+    count_query = select(func.count(Invoice.id)).where(Invoice.owner_id == tid)
 
     if customer_id:
         query = query.where(Invoice.customer_id == customer_id)
@@ -100,8 +104,10 @@ async def get_invoice(
     invoice_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id, Invoice.owner_id == tid))
     invoice = result.scalar_one_or_none()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -113,8 +119,10 @@ async def download_invoice_pdf(
     invoice_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id, Invoice.owner_id == tid))
     invoice = result.scalar_one_or_none()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -124,7 +132,8 @@ async def download_invoice_pdf(
     payments = invoice.payments or []
     total_paid = sum(p.amount for p in payments)
 
-    pdf_bytes = generate_invoice_pdf(invoice, customer, plan, payments, total_paid)
+    branding = await get_branding_settings(db, tenant_id=tid)
+    pdf_bytes = generate_invoice_pdf(invoice, customer, plan, payments, total_paid, branding=branding)
 
     filename = f"invoice-{str(invoice.id)[:8]}.pdf"
     return Response(
@@ -139,16 +148,18 @@ async def generate_invoices(
     body: InvoiceGenerateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.billing)),
+    tenant_id: str = Depends(get_tenant_id),
 ):
+    tid = uuid.UUID(tenant_id)
     if body.customer_id:
-        result = await db.execute(select(Customer).where(Customer.id == body.customer_id))
+        result = await db.execute(select(Customer).where(Customer.id == body.customer_id, Customer.owner_id == tid))
         customer = result.scalar_one_or_none()
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
-        invoice = await billing_service.generate_invoice(db, customer, date.today().replace(day=1))
+        invoice = await billing_service.generate_invoice(db, customer, date.today().replace(day=1), owner_id=tid)
         return {"generated": 1, "skipped": 0, "invoices": [str(invoice.id)]}
     else:
-        result = await billing_service.generate_monthly_invoices(db)
+        result = await billing_service.generate_monthly_invoices(db, owner_id=tid)
         return result
 
 
@@ -158,8 +169,10 @@ async def update_invoice(
     body: InvoiceUpdateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.billing)),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id, Invoice.owner_id == tid))
     invoice = result.scalar_one_or_none()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -185,9 +198,11 @@ async def list_payments(
     size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Payment)
-    count_query = select(func.count(Payment.id))
+    tid = uuid.UUID(tenant_id)
+    query = select(Payment).where(Payment.owner_id == tid)
+    count_query = select(func.count(Payment.id)).where(Payment.owner_id == tid)
 
     if customer_id:
         query = query.join(Invoice).where(Invoice.customer_id == customer_id)
@@ -229,7 +244,9 @@ async def create_payment(
     body: PaymentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.billing)),
+    tenant_id: str = Depends(get_tenant_id),
 ):
+    tid = uuid.UUID(tenant_id)
     try:
         payment = await billing_service.record_payment(
             db=db,
@@ -238,12 +255,13 @@ async def create_payment(
             method=body.method,
             reference=body.reference_number,
             received_by=current_user.id,
+            owner_id=tid,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     inv = payment.invoice
-    await log_action(db, current_user.id, "payment.create", "payment", payment.id, details=f"invoice={payment.invoice_id} amount={payment.amount} method={payment.method}")
+    await log_action(db, current_user.id, "payment.create", "payment", payment.id, details=f"invoice={payment.invoice_id} amount={payment.amount} method={payment.method}", owner_id=tid)
     return {
         "id": payment.id,
         "invoice_id": payment.invoice_id,
@@ -266,8 +284,10 @@ async def revenue_summary(
     to_date: date = Query(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.billing)),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    return await billing_service.get_revenue_summary(db, from_date, to_date)
+    tid = uuid.UUID(tenant_id)
+    return await billing_service.get_revenue_summary(db, from_date, to_date, owner_id=tid)
 
 
 @router.get("/notifications")
@@ -277,8 +297,10 @@ async def list_notifications(
     size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
 ):
-    query = select(Notification)
+    tid = uuid.UUID(tenant_id)
+    query = select(Notification).where(Notification.owner_id == tid)
     if status_filter:
         query = query.where(Notification.status == status_filter)
     query = query.order_by(Notification.created_at.desc()).offset((page - 1) * size).limit(size)
