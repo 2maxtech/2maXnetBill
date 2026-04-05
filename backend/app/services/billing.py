@@ -37,9 +37,11 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
     due_date = billing_period.replace(day=due_day)
 
     # Prorate first invoice: if customer signed up mid-cycle, charge only for days used
+    # Skip proration for imported customers (they're existing subscribers)
     amount = plan.monthly_price
+    is_imported = customer.email and customer.email.endswith("@imported.local")
     signup_date = customer.created_at.date() if customer.created_at else None
-    if signup_date and signup_date.year == billing_period.year and signup_date.month == billing_period.month:
+    if not is_imported and signup_date and signup_date.year == billing_period.year and signup_date.month == billing_period.month:
         # First invoice — prorate from signup day to end of month
         import calendar
         days_in_month = calendar.monthrange(billing_period.year, billing_period.month)[1]

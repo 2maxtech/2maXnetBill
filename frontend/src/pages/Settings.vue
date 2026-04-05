@@ -23,7 +23,9 @@ import {
 } from '../api/settings'
 
 const { user } = useAuth()
-const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
+import { useImpersonate } from '../composables/useImpersonate'
+const { isImpersonating } = useImpersonate()
+const isSuperAdmin = computed(() => user.value?.role === 'super_admin' && !isImpersonating.value)
 const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding'>('account')
 
 // SMTP
