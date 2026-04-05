@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuth } from '../composables/useAuth'
 import {
   getSmtpSettings,
   saveSmtpSettings,
@@ -21,6 +22,8 @@ import {
   type ProfileUpdate,
 } from '../api/settings'
 
+const { user } = useAuth()
+const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
 const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding'>('account')
 
 // SMTP
@@ -386,6 +389,7 @@ onMounted(() => {
         Account
       </button>
       <button
+        v-if="!isSuperAdmin"
         @click="activeTab = 'billing'"
         :class="[
           'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
@@ -408,6 +412,7 @@ onMounted(() => {
         SMTP
       </button>
       <button
+        v-if="!isSuperAdmin"
         @click="activeTab = 'sms'"
         :class="[
           'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
@@ -419,6 +424,7 @@ onMounted(() => {
         SMS
       </button>
       <button
+        v-if="!isSuperAdmin"
         @click="activeTab = 'branding'"
         :class="[
           'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
