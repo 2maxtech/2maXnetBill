@@ -4,7 +4,7 @@
 
 $ErrorActionPreference = "Stop"
 $InstallDir = "C:\NetLedger"
-$RepoUrl = "https://github.com/2maxtech/2maXnetBill.git"
+$RepoUrl = "https://github.com/2maxtech/NetLedger.git"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor DarkYellow

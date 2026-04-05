@@ -5,7 +5,7 @@ set -e
 # Usage: curl -fsSL https://netl.2max.tech/install.sh | sudo bash
 
 INSTALL_DIR="/opt/netledger"
-REPO_URL="https://github.com/2maxtech/2maXnetBill.git"
+REPO_URL="https://github.com/2maxtech/NetLedger.git"
 ORANGE='\033[0;33m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
