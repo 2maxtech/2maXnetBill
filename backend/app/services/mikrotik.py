@@ -270,7 +270,7 @@ def get_mikrotik_client(
 
     # Auto-prepend http:// if no protocol
     if url and not url.startswith(("http://", "https://")):
-        url = "http://" + url
+        url = "https://" + url
     client = MikroTikClient(url=url, user=user, password=password)
     _client_cache[cache_key] = client
     return client

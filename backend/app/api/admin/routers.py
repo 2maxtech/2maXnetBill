@@ -39,7 +39,7 @@ async def create_router(
     data = body.model_dump()
     # Auto-prepend http:// if no protocol specified
     if data.get("url") and not data["url"].startswith(("http://", "https://")):
-        data["url"] = "http://" + data["url"]
+        data["url"] = "https://" + data["url"]
     r = Router(**data)
     r.owner_id = uuid.UUID(tenant_id)
     db.add(r)
@@ -162,11 +162,10 @@ async def import_from_router(
     except Exception as e:
         return {"error": f"Failed to connect: {e}"}
 
-    # Build profile → rate-limit map
-    profile_rates: dict[str, str] = {}
+    # Build profile → rate-limit map (include ALL profiles, not just those with rate-limit)
+    profile_info: dict[str, str] = {}
     for p in mt_profiles:
-        if p.get("rate-limit"):
-            profile_rates[p["name"]] = p["rate-limit"]
+        profile_info[p["name"]] = p.get("rate-limit", "")
 
     # Get this tenant's existing customers to avoid duplicates within the same tenant
     existing_result = await db.execute(select(Customer).where(Customer.owner_id == tid))
@@ -191,17 +190,25 @@ async def import_from_router(
     customers_created = 0
     customers_skipped = 0
 
-    # Create plans from profiles
+    # Collect which profiles are actually used by secrets
+    used_profiles = {s.get("profile", "default") for s in mt_secrets if s.get("name")}
+
+    # Create plans from profiles (all used profiles, not just those with rate-limit)
     plan_map: dict[str, Plan] = {}
-    for pname, rate in profile_rates.items():
+    for pname in used_profiles:
         if pname in existing_plans:
             plan_map[pname] = existing_plans[pname]
             continue
-        parts = rate.split("/")
-        if len(parts) == 2:
-            download = _to_mbps(parts[1])
-            upload = _to_mbps(parts[0])
+        rate = profile_info.get(pname, "")
+        if rate:
+            parts = rate.split("/")
+            if len(parts) == 2:
+                download = _to_mbps(parts[1])
+                upload = _to_mbps(parts[0])
+            else:
+                download, upload = 10, 5
         else:
+            # Profile has no rate-limit — use defaults
             download, upload = 10, 5
         plan = Plan(
             name=pname,
@@ -209,7 +216,7 @@ async def import_from_router(
             upload_mbps=upload,
             monthly_price=Decimal("0.00"),
             is_active=True,
-            description=f"Imported from MikroTik",
+            description=f"Imported from MikroTik" + (" (no rate-limit set)" if not rate else ""),
             owner_id=tid,
         )
         db.add(plan)
