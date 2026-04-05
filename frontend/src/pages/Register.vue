@@ -47,7 +47,7 @@ async function handleRegister() {
       password: form.value.password,
     })
     const msg = data.email_sent
-      ? 'Registration successful! Check your email to confirm your account.'
+      ? 'Registration successful! Check your email to confirm your account. If you don\'t see it, check your Spam or Junk folder.'
       : 'Registration successful! Contact support to activate your account.'
     router.push({ path: '/login', query: { registered: '1', msg: encodeURIComponent(msg) } })
   } catch (e: any) {
