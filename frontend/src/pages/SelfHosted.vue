@@ -23,7 +23,10 @@ function copyWinCommands() {
       <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
         <router-link to="/" class="flex items-center gap-3">
           <img src="/logo-2.png" class="w-9 h-9" />
-          <span class="text-xl font-bold text-gray-900">NetLedger</span>
+          <div>
+            <span class="text-xl font-bold text-gray-900 block leading-tight">NetLedger</span>
+            <span class="text-[10px] text-gray-400 font-medium">by 2max.tech</span>
+          </div>
         </router-link>
         <div class="flex items-center gap-3">
           <router-link to="/login" class="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors">

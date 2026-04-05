@@ -18,7 +18,10 @@ onMounted(() => {
       <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <img src="/logo-2.png" class="w-9 h-9" alt="NetLedger" />
-          <span class="text-xl font-bold text-gray-900">NetLedger</span>
+          <div class="flex flex-col -space-y-1">
+            <span class="text-xl font-bold text-gray-900">NetLedger</span>
+            <span class="text-[10px] text-gray-400 font-medium">by 2max.tech</span>
+          </div>
         </div>
         <div class="flex items-center gap-3">
           <router-link to="/portal/login" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">

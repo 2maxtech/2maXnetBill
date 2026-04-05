@@ -34,7 +34,10 @@ function isActive(item: { path: string; exact?: boolean }) {
       <div class="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
         <div class="flex items-center gap-3">
           <img src="/logo-2.png" class="w-7 h-7" />
-          <span class="font-bold text-gray-800">NetLedger</span>
+          <div>
+            <span class="font-bold text-gray-800 block leading-tight">NetLedger</span>
+            <span class="text-[10px] text-gray-400 font-medium">by 2max.tech</span>
+          </div>
         </div>
         <div class="flex items-center gap-6">
           <nav class="flex gap-1">

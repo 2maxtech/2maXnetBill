@@ -94,7 +94,10 @@ function navigate(path: string) {
     <!-- Logo -->
     <div class="flex items-center gap-3 px-4 py-5">
       <img src="/logo-2.png" alt="NetLedger" class="w-12 h-12 object-contain" />
-      <span v-if="!collapsed" class="text-white font-bold text-lg whitespace-nowrap">NetLedger</span>
+      <div v-if="!collapsed">
+        <span class="text-white font-bold text-lg block leading-tight">NetLedger</span>
+        <span class="text-[10px] text-gray-500 font-medium">by 2max.tech</span>
+      </div>
     </div>
 
     <!-- Navigation -->

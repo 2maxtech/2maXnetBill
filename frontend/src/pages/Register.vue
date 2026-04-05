@@ -75,6 +75,7 @@ async function handleRegister() {
           <img src="/logo-2.png" alt="NetLedger" class="w-16 h-16 object-contain" />
         </div>
         <h1 class="text-3xl font-bold text-white tracking-tight">NetLedger</h1>
+        <p class="text-gray-400 mt-1 text-sm">by 2max.tech</p>
         <p class="text-gray-400 mt-1 text-sm">Register your ISP organization</p>
       </div>
 
