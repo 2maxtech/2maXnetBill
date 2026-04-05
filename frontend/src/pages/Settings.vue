@@ -10,15 +10,18 @@ import {
   getBrandingSettings,
   saveBrandingSettings,
   uploadLogo,
+  getBillingSettings,
+  saveBillingSettings,
   getProfile,
   updateProfile,
   type SmtpSettings,
   type SmsSettings,
   type BrandingSettings,
+  type BillingSettingsType,
   type ProfileUpdate,
 } from '../api/settings'
 
-const activeTab = ref<'account' | 'smtp' | 'sms' | 'branding'>('account')
+const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding'>('account')
 
 // SMTP
 const smtp = ref<SmtpSettings>({
@@ -72,6 +75,22 @@ const brandingSaving = ref(false)
 const brandingMsg = ref('')
 const brandingMsgType = ref<'success' | 'error'>('success')
 const logoUploading = ref(false)
+
+// Billing
+const billing = ref<BillingSettingsType>({
+  billing_reminder_days_before_due: '5',
+  billing_throttle_days_after_due: '3',
+  billing_disconnect_days_after_due: '5',
+  billing_terminate_days_after_due: '35',
+  billing_default_due_day: '15',
+  billing_auto_generate: 'true',
+  billing_send_invoice_email: 'true',
+  billing_send_invoice_sms: 'true',
+})
+const billingLoading = ref(false)
+const billingSaving = ref(false)
+const billingMsg = ref('')
+const billingMsgType = ref<'success' | 'error'>('success')
 
 // Account
 const account = ref({
@@ -312,8 +331,37 @@ async function handleSaveBranding() {
   }
 }
 
+async function loadBilling() {
+  billingLoading.value = true
+  try {
+    const { data } = await getBillingSettings()
+    billing.value = { ...billing.value, ...data }
+  } catch (e: any) {
+    billingMsg.value = 'Failed to load billing settings'
+    billingMsgType.value = 'error'
+  } finally {
+    billingLoading.value = false
+  }
+}
+
+async function handleSaveBilling() {
+  billingSaving.value = true
+  billingMsg.value = ''
+  try {
+    await saveBillingSettings(billing.value as unknown as Record<string, string>)
+    billingMsg.value = 'Billing settings saved successfully'
+    billingMsgType.value = 'success'
+  } catch (e: any) {
+    billingMsg.value = e.response?.data?.detail || 'Failed to save billing settings'
+    billingMsgType.value = 'error'
+  } finally {
+    billingSaving.value = false
+  }
+}
+
 onMounted(() => {
   loadAccount()
+  loadBilling()
   loadSmtp()
   loadSms()
   loadBranding()
@@ -336,6 +384,17 @@ onMounted(() => {
         ]"
       >
         Account
+      </button>
+      <button
+        @click="activeTab = 'billing'"
+        :class="[
+          'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+          activeTab === 'billing'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ]"
+      >
+        Billing
       </button>
       <button
         @click="activeTab = 'smtp'"
@@ -512,6 +571,72 @@ onMounted(() => {
     </div>
 
     <!-- SMTP Tab -->
+    <!-- Billing Tab -->
+    <div v-if="activeTab === 'billing'" class="space-y-6">
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Billing Enforcement</h2>
+        <p class="text-sm text-gray-500 mb-4">Configure grace periods for overdue invoices. The system automatically throttles and disconnects customers based on these settings.</p>
+
+        <div v-if="billingMsg" :class="['mb-4 rounded-lg px-4 py-3 text-sm', billingMsgType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200']">
+          {{ billingMsg }}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Default Due Day (1-28)</label>
+            <select v-model="billing.billing_default_due_day" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors">
+              <option v-for="d in 28" :key="d" :value="String(d)">{{ d }}</option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">Default for new customers (can be overridden per customer)</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Reminder Days Before Due</label>
+            <input v-model="billing.billing_reminder_days_before_due" type="number" min="1" max="30" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+            <p class="text-xs text-gray-400 mt-1">Send SMS/email reminder this many days before due date</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Throttle After (days overdue)</label>
+            <input v-model="billing.billing_throttle_days_after_due" type="number" min="1" max="30" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+            <p class="text-xs text-gray-400 mt-1">Reduce speed to 1Mbps after this many days overdue</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Disconnect After (days overdue)</label>
+            <input v-model="billing.billing_disconnect_days_after_due" type="number" min="1" max="60" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+            <p class="text-xs text-gray-400 mt-1">Disable PPPoE secret after this many days overdue</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Terminate After (days overdue)</label>
+            <input v-model="billing.billing_terminate_days_after_due" type="number" min="7" max="365" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+            <p class="text-xs text-gray-400 mt-1">Flag for permanent removal after this many days overdue</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Invoice Notifications</h2>
+        <div class="space-y-3">
+          <label class="flex items-center gap-3">
+            <input type="checkbox" :checked="billing.billing_send_invoice_email === 'true'" @change="billing.billing_send_invoice_email = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
+            <span class="text-sm text-gray-700">Send invoice via <strong>email</strong> when generated</span>
+          </label>
+          <label class="flex items-center gap-3">
+            <input type="checkbox" :checked="billing.billing_send_invoice_sms === 'true'" @change="billing.billing_send_invoice_sms = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
+            <span class="text-sm text-gray-700">Send invoice via <strong>SMS</strong> when generated (requires SMS configured)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button
+          @click="handleSaveBilling"
+          :disabled="billingSaving"
+          class="px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+        >
+          {{ billingSaving ? 'Saving...' : 'Save Billing Settings' }}
+        </button>
+      </div>
+    </div>
+
     <div v-if="activeTab === 'smtp'" class="space-y-6">
       <!-- SMTP Settings Form -->
       <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">

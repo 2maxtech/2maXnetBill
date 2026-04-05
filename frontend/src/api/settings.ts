@@ -63,6 +63,26 @@ export function uploadLogo(formData: FormData) {
   })
 }
 
+// Billing Settings
+export interface BillingSettingsType {
+  billing_reminder_days_before_due: string
+  billing_throttle_days_after_due: string
+  billing_disconnect_days_after_due: string
+  billing_terminate_days_after_due: string
+  billing_default_due_day: string
+  billing_auto_generate: string
+  billing_send_invoice_email: string
+  billing_send_invoice_sms: string
+}
+
+export function getBillingSettings() {
+  return api.get<BillingSettingsType>('/settings/billing')
+}
+
+export function saveBillingSettings(data: Record<string, string>) {
+  return api.put('/settings/billing', data)
+}
+
 // Account / Profile
 export interface ProfileUpdate {
   username?: string

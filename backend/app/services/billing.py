@@ -58,6 +58,40 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
     db.add(invoice)
     await db.flush()
     await db.refresh(invoice)
+
+    # Create email + SMS notifications for the invoice
+    try:
+        oid = owner_id or customer.owner_id
+        if amount > Decimal("0"):
+            # Email notification
+            email_msg = (
+                f"Hi {customer.full_name},\n\n"
+                f"Your invoice of ₱{amount:,.2f} for plan {plan.name} has been generated.\n"
+                f"Due date: {due_date.strftime('%B %d, %Y')}\n\n"
+                f"Please pay before the due date to avoid service interruption.\n\n"
+                f"Thank you!"
+            )
+            db.add(Notification(
+                customer_id=customer.id,
+                type=NotificationType.email,
+                subject=f"Invoice - ₱{amount:,.2f} due {due_date.strftime('%b %d')}",
+                message=email_msg,
+                status=NotificationStatus.pending,
+                owner_id=oid,
+            ))
+            # SMS notification
+            sms_msg = f"Hi {customer.full_name}, your bill of P{amount:,.2f} is due on {due_date.strftime('%b %d')}. Please pay on time to avoid disconnection."
+            db.add(Notification(
+                customer_id=customer.id,
+                type=NotificationType.sms,
+                subject="Invoice Generated",
+                message=sms_msg,
+                status=NotificationStatus.pending,
+                owner_id=oid,
+            ))
+    except Exception as e:
+        logger.error(f"Failed to create invoice notifications for {customer.id}: {e}")
+
     return invoice
 
 
@@ -206,6 +240,30 @@ async def check_overdue_invoices(db: AsyncSession) -> int:
     return len(invoices)
 
 
+async def _get_tenant_billing_cfg(db: AsyncSession, tenant_id) -> dict:
+    """Get tenant-specific billing settings, with global fallback."""
+    from app.models.app_setting import AppSetting
+    defaults = {
+        "billing_throttle_days_after_due": str(settings.BILLING_THROTTLE_DAYS_AFTER_DUE),
+        "billing_disconnect_days_after_due": str(settings.BILLING_DISCONNECT_DAYS_AFTER_DUE),
+        "billing_terminate_days_after_due": str(settings.BILLING_TERMINATE_DAYS_AFTER_DUE),
+    }
+    if tenant_id:
+        result = await db.execute(
+            select(AppSetting).where(
+                AppSetting.key.in_(defaults.keys()),
+                AppSetting.owner_id == tenant_id,
+            )
+        )
+        for s in result.scalars().all():
+            defaults[s.key] = s.value
+    return {
+        "throttle": int(defaults["billing_throttle_days_after_due"]),
+        "disconnect": int(defaults["billing_disconnect_days_after_due"]),
+        "terminate": int(defaults["billing_terminate_days_after_due"]),
+    }
+
+
 async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = False) -> dict:
     """Apply graduated disconnect enforcement on overdue invoices."""
     today = date.today()
@@ -219,14 +277,23 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
     flagged = 0
     errors = []
 
+    # Cache tenant configs
+    _cfg_cache: dict = {}
+
     for inv in invoices:
         customer = inv.customer
         days_overdue = (today - inv.due_date).days
 
+        # Get tenant-specific settings
+        tid = str(inv.owner_id) if inv.owner_id else None
+        if tid not in _cfg_cache:
+            _cfg_cache[tid] = await _get_tenant_billing_cfg(db, inv.owner_id)
+        cfg = _cfg_cache[tid]
+
         try:
             # Throttle: customer is active and overdue enough
             if (
-                days_overdue >= settings.BILLING_THROTTLE_DAYS_AFTER_DUE
+                days_overdue >= cfg["throttle"]
                 and customer.status == CustomerStatus.active
             ):
                 if not skip_network:
@@ -257,7 +324,7 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
 
             # Disconnect: customer is suspended and overdue enough
             elif (
-                days_overdue >= settings.BILLING_DISCONNECT_DAYS_AFTER_DUE
+                days_overdue >= cfg["disconnect"]
                 and customer.status == CustomerStatus.suspended
             ):
                 if not skip_network:
@@ -284,7 +351,7 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
                 disconnected += 1
 
             # Flag for termination
-            elif days_overdue >= settings.BILLING_TERMINATE_DAYS_AFTER_DUE:
+            elif days_overdue >= cfg["terminate"]:
                 flagged += 1
 
         except Exception as e:
