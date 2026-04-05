@@ -3,7 +3,7 @@ import uuid
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -46,17 +46,33 @@ async def vpn_setup(
 
     try:
         info = await _wg_api("GET", "/info")
-        ip_data = await _wg_api("GET", "/next-ip")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"VPN service unavailable: {e}")
 
-    tunnel_ip = r.wg_tunnel_ip or ip_data["tunnel_ip"]
     server_key = info["server_public_key"]
     endpoint = info["endpoint"]
 
     if not r.wg_tunnel_ip:
+        # Allocate next available IP from database (not wg-api) to avoid duplicates
+        result_ips = await db.execute(
+            select(Router.wg_tunnel_ip).where(Router.wg_tunnel_ip.isnot(None))
+        )
+        used = set()
+        for (ip,) in result_ips:
+            parts = ip.split(".")
+            if len(parts) == 4:
+                used.add(int(parts[3]))
+        tunnel_ip = None
+        for i in range(2, 255):
+            if i not in used:
+                tunnel_ip = f"10.10.10.{i}"
+                break
+        if not tunnel_ip:
+            raise HTTPException(status_code=507, detail="No available tunnel IPs")
         r.wg_tunnel_ip = tunnel_ip
         await db.flush()
+    else:
+        tunnel_ip = r.wg_tunnel_ip
 
     script = (
         f'/interface/wireguard/add name=wg-netledger listen-port=13231\n'

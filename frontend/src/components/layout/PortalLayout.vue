@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
+const slug = computed(() => route.params.slug as string)
+
 const customer = computed(() => {
   const raw = localStorage.getItem('portal_customer')
   return raw ? JSON.parse(raw) : null
@@ -12,15 +14,16 @@ const customer = computed(() => {
 function logout() {
   localStorage.removeItem('portal_token')
   localStorage.removeItem('portal_customer')
-  router.push('/portal/login')
+  localStorage.removeItem('portal_slug')
+  router.push(`/portal/${slug.value}/login`)
 }
 
-const navItems = [
-  { path: '/portal', label: 'Dashboard', exact: true },
-  { path: '/portal/invoices', label: 'Invoices' },
-  { path: '/portal/usage', label: 'Usage' },
-  { path: '/portal/tickets', label: 'Tickets' },
-]
+const navItems = computed(() => [
+  { path: `/portal/${slug.value}`, label: 'Dashboard', exact: true },
+  { path: `/portal/${slug.value}/invoices`, label: 'Invoices' },
+  { path: `/portal/${slug.value}/usage`, label: 'Usage' },
+  { path: `/portal/${slug.value}/tickets`, label: 'Tickets' },
+])
 
 function isActive(item: { path: string; exact?: boolean }) {
   return item.exact ? route.path === item.path : route.path.startsWith(item.path)

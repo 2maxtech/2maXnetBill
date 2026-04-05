@@ -1,27 +1,43 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { portalLogin } from '../../api/portal'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { portalLogin, resolveTenantSlug } from '../../api/portal'
 
 const router = useRouter()
+const route = useRoute()
+const slug = route.params.slug as string
 
-const email = ref('')
+const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const tenantName = ref('')
+const tenantLogo = ref('')
+const tenantNotFound = ref(false)
+
+onMounted(async () => {
+  try {
+    const { data } = await resolveTenantSlug(slug)
+    tenantName.value = data.company_name
+    tenantLogo.value = data.company_logo_url
+  } catch {
+    tenantNotFound.value = true
+  }
+})
 
 async function handleLogin() {
   error.value = ''
-  if (!email.value || !password.value) {
-    error.value = 'Please enter both email and password.'
+  if (!username.value || !password.value) {
+    error.value = 'Please enter both username and password.'
     return
   }
   loading.value = true
   try {
-    const { data } = await portalLogin(email.value, password.value)
+    const { data } = await portalLogin(username.value, password.value, slug)
     localStorage.setItem('portal_token', data.access_token)
     localStorage.setItem('portal_customer', JSON.stringify(data.customer))
-    router.push('/portal')
+    localStorage.setItem('portal_slug', slug)
+    router.push(`/portal/${slug}`)
   } catch (e: any) {
     error.value =
       e.response?.data?.detail ||
@@ -40,14 +56,26 @@ async function handleLogin() {
       <div class="absolute inset-0" style="background-image: radial-gradient(circle at 25% 25%, white 1px, transparent 1px); background-size: 50px 50px;" />
     </div>
 
-    <div class="relative w-full max-w-md">
+    <!-- Portal not found -->
+    <div v-if="tenantNotFound" class="relative text-center">
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-8 max-w-md">
+        <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Portal Not Found</h2>
+        <p class="text-sm text-gray-500">The portal link you followed is invalid or no longer active. Please check the URL and try again.</p>
+      </div>
+    </div>
+
+    <div v-else class="relative w-full max-w-md">
       <!-- Logo & Title -->
       <div class="text-center mb-8">
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm mb-4">
-          <img src="/logo-2.png" alt="NetLedger" class="w-16 h-16 object-contain" />
+          <img v-if="tenantLogo" :src="tenantLogo" :alt="tenantName" class="w-16 h-16 object-contain" />
+          <img v-else src="/logo-2.png" alt="NetLedger" class="w-16 h-16 object-contain" />
         </div>
-        <h1 class="text-3xl font-bold text-white tracking-tight">Customer Portal</h1>
-        <p class="text-gray-400 mt-1 text-sm">by 2max.tech</p>
+        <h1 class="text-3xl font-bold text-white tracking-tight">{{ tenantName || 'Customer Portal' }}</h1>
+        <p class="text-gray-400 mt-1 text-sm">Customer Portal</p>
       </div>
 
       <!-- Login Card -->
@@ -66,22 +94,21 @@ async function handleLogin() {
         </div>
 
         <form @submit.prevent="handleLogin" class="space-y-5">
-          <!-- Email -->
+          <!-- PPPoE Username -->
           <div>
-            <label for="portal-email" class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <label for="portal-username" class="block text-sm font-medium text-gray-700 mb-1.5">PPPoE Username</label>
             <div class="relative">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="w-5 h-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
                 </svg>
               </div>
               <input
-                id="portal-email"
-                v-model="email"
-                type="email"
-                autocomplete="email"
-                placeholder="Enter your email"
+                id="portal-username"
+                v-model="username"
+                type="text"
+                autocomplete="username"
+                placeholder="Enter your PPPoE username"
                 class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
               />
             </div>
@@ -129,7 +156,7 @@ async function handleLogin() {
 
       <!-- Footer -->
       <p class="text-center text-gray-500 text-xs mt-6">
-        &copy; {{ new Date().getFullYear() }} NetLedger &mdash; 2max Tech
+        Powered by <a href="https://2max.tech" class="text-gray-400 hover:text-white transition-colors">NetLedger</a>
       </p>
     </div>
   </div>

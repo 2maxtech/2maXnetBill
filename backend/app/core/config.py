@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NetLedger"
     API_V1_PREFIX: str = "/api/v1"
+    BASE_URL: str = "https://netl.2max.tech"
 
     DATABASE_URL: str = "postgresql+asyncpg://netbill:netbill@db:5432/netbill"
     REDIS_URL: str = "redis://redis:6379/0"

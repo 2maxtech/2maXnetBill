@@ -28,8 +28,12 @@ export interface PortalInvoice {
   plan_name: string
 }
 
-export function portalLogin(email: string, password: string) {
-  return portalApi.post('/auth/login', { email, password })
+export function resolveTenantSlug(slug: string) {
+  return portalApi.get<{ tenant_id: string; company_name: string; company_logo_url: string }>(`/tenant/${slug}`)
+}
+
+export function portalLogin(username: string, password: string, slug: string) {
+  return portalApi.post('/auth/login', { username, password, slug })
 }
 
 export function getPortalMe() {

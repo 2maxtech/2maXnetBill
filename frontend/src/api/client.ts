@@ -90,9 +90,11 @@ portalApi.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const slug = localStorage.getItem('portal_slug')
       localStorage.removeItem('portal_token')
       localStorage.removeItem('portal_customer')
-      window.location.href = '/portal/login'
+      localStorage.removeItem('portal_slug')
+      window.location.href = slug ? `/portal/${slug}/login` : '/'
     }
     return Promise.reject(error)
   }

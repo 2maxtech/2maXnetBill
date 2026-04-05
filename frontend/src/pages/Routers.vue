@@ -72,7 +72,6 @@ const vpnRouterId = ref('')
 const vpnRouterName = ref('')
 const vpnData = ref<VpnSetupResponse | null>(null)
 const vpnClientKey = ref('')
-const vpnClientLan = ref('')
 const vpnError = ref('')
 const vpnSuccess = ref('')
 const vpnCopied = ref(false)
@@ -83,7 +82,6 @@ async function startVpnSetup(router: RouterType) {
   vpnStep.value = 1
   vpnData.value = null
   vpnClientKey.value = ''
-  vpnClientLan.value = ''
   vpnError.value = ''
   vpnSuccess.value = ''
   vpnCopied.value = false
@@ -117,7 +115,6 @@ async function activateVpn() {
   try {
     const { data } = await vpnActivate(vpnRouterId.value, {
       public_key: vpnClientKey.value.trim(),
-      client_lan: vpnClientLan.value.trim(),
     })
     vpnSuccess.value = data.message
     vpnStep.value = 3
@@ -688,11 +685,7 @@ onMounted(loadRouters)
           <p class="text-sm text-gray-600 mb-3">Paste the <strong>Public Key</strong> from your MikroTik WireGuard interface:</p>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">MikroTik Public Key</label>
-            <input v-model="vpnClientKey" type="text" placeholder="e.g. VSs6joEGtYn6ZQJJiqSepzR+H3xK82f37H1EqUUeE2k=" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-          </div>
-          <div class="mt-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Router LAN Subnet <span class="text-gray-400 font-normal">(optional — e.g. 192.168.1.0/24)</span></label>
-            <input v-model="vpnClientLan" type="text" placeholder="192.168.1.0/24" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+            <input v-model="vpnClientKey" type="text" placeholder="Paste your MikroTik WireGuard public key here" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
           </div>
         </div>
 

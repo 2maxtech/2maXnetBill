@@ -245,7 +245,16 @@ BRANDING_KEYS = [
     "company_logo_url",
     "invoice_footer",
     "invoice_prefix",
+    "portal_slug",
 ]
+
+
+def _slugify(name: str) -> str:
+    """Convert company name to URL-safe slug."""
+    import re
+    slug = name.lower().strip()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    return slug.strip("-")
 
 
 async def get_branding_settings(db: AsyncSession, tenant_id: uuid.UUID | None = None) -> dict:
@@ -279,6 +288,20 @@ async def update_branding(
     """Save company branding settings."""
     tid = uuid.UUID(tenant_id)
     allowed = {k: v for k, v in body.items() if k in BRANDING_KEYS}
+    # Auto-generate portal_slug from company_name
+    if "company_name" in allowed and allowed["company_name"]:
+        slug = _slugify(allowed["company_name"])
+        # Check uniqueness — append tenant short id if collision
+        existing = await db.execute(
+            select(AppSetting).where(
+                AppSetting.key == "portal_slug",
+                AppSetting.value == slug,
+                AppSetting.owner_id != tid,
+            )
+        )
+        if existing.scalar_one_or_none():
+            slug = f"{slug}-{str(tid)[:4]}"
+        allowed["portal_slug"] = slug
     for key, value in allowed.items():
         await save_setting(db, key, str(value), tenant_id=tid)
     await db.flush()

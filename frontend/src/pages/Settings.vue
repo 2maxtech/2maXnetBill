@@ -72,7 +72,10 @@ const branding = ref<BrandingSettings>({
   company_logo_url: '',
   invoice_footer: '',
   invoice_prefix: '',
+  portal_slug: '',
 })
+const portalUrl = computed(() => branding.value.portal_slug ? `${window.location.origin}/portal/${branding.value.portal_slug}` : '')
+function copyPortalUrl() { navigator.clipboard.writeText(portalUrl.value) }
 const brandingLoading = ref(false)
 const brandingSaving = ref(false)
 const brandingMsg = ref('')
@@ -324,6 +327,7 @@ async function handleSaveBranding() {
   brandingMsg.value = ''
   try {
     await saveBrandingSettings(branding.value as unknown as Record<string, string>)
+    await loadBranding()
     brandingMsg.value = 'Branding settings saved successfully'
     brandingMsgType.value = 'success'
   } catch (e: any) {
@@ -967,6 +971,18 @@ onMounted(() => {
               placeholder="Thank you for your business!"
               class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-none"
             />
+          </div>
+          <!-- Customer Portal Link -->
+          <div v-if="portalUrl" class="rounded-lg bg-blue-50 border border-blue-200 p-4">
+            <label class="block text-sm font-medium text-blue-800 mb-1.5">Customer Portal Link</label>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 px-3 py-2 bg-white rounded-lg border border-blue-200 text-sm font-mono text-blue-700 select-all">{{ portalUrl }}</code>
+              <button type="button" @click="copyPortalUrl" class="px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">Copy</button>
+            </div>
+            <p class="mt-1.5 text-xs text-blue-600">Share this link with your customers. They can log in using their PPPoE username and password.</p>
+          </div>
+          <div v-else class="rounded-lg bg-gray-50 border border-gray-200 p-4">
+            <p class="text-sm text-gray-500">Save your company name to generate a Customer Portal link for your subscribers.</p>
           </div>
           <div class="flex justify-end">
             <button

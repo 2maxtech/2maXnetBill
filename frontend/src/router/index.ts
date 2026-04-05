@@ -25,11 +25,11 @@ const router = createRouter({
       component: () => import('../pages/SelfHosted.vue'),
     },
     {
-      path: '/portal/login',
+      path: '/portal/:slug/login',
       component: () => import('../pages/portal/PortalLogin.vue'),
     },
     {
-      path: '/portal',
+      path: '/portal/:slug',
       component: () => import('../components/layout/PortalLayout.vue'),
       children: [
         { path: '', component: () => import('../pages/portal/PortalDashboard.vue') },
@@ -72,11 +72,13 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const publicPaths = ['/', '/login', '/register', '/portal/login', '/self-hosted']
+  const publicPaths = ['/', '/login', '/register', '/self-hosted']
   const isPortal = to.path.startsWith('/portal')
-  if (publicPaths.includes(to.path)) return true
+  const isPortalLogin = to.matched.some(r => r.path === '/portal/:slug/login')
+  if (publicPaths.includes(to.path) || isPortalLogin) return true
   if (isPortal) {
-    if (!localStorage.getItem('portal_token')) return '/portal/login'
+    const slug = to.params.slug as string
+    if (!localStorage.getItem('portal_token')) return `/portal/${slug}/login`
   } else {
     if (!localStorage.getItem('access_token')) return '/login'
   }

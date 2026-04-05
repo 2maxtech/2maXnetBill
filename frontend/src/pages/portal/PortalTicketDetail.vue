@@ -6,6 +6,7 @@ import { getPortalTicket, addPortalTicketMessage } from '../../api/portal'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 
 const route = useRoute()
+const slug = route.params.slug as string
 const ticketId = route.params.id as string
 
 const ticket = ref<any>(null)
@@ -65,7 +66,7 @@ onMounted(fetchTicket)
   <div class="space-y-6">
     <!-- Back link -->
     <router-link
-      to="/portal/tickets"
+      :to="`/portal/${slug}/tickets`"
       class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary transition-colors"
     >
       <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">

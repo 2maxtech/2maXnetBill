@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.models.customer import Customer, CustomerStatus
 from app.models.disconnect_log import DisconnectAction, DisconnectLog, DisconnectReason
 from app.models.invoice import Invoice, InvoiceStatus
+from app.models.app_setting import AppSetting
 from app.models.notification import Notification, NotificationStatus, NotificationType
 from app.models.payment import Payment
 
@@ -63,12 +64,25 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
     try:
         oid = owner_id or customer.owner_id
         if amount > Decimal("0"):
+            # Get portal slug for customer portal link
+            portal_line = ""
+            portal_sms = ""
+            slug_result = await db.execute(
+                select(AppSetting).where(AppSetting.key == "portal_slug", AppSetting.owner_id == oid)
+            )
+            slug_setting = slug_result.scalar_one_or_none()
+            if slug_setting and slug_setting.value:
+                portal_url = f"{settings.BASE_URL}/portal/{slug_setting.value}"
+                portal_line = f"\nView your account: {portal_url}\n"
+                portal_sms = f" View account: {portal_url}"
+
             # Email notification
             email_msg = (
                 f"Hi {customer.full_name},\n\n"
                 f"Your invoice of ₱{amount:,.2f} for plan {plan.name} has been generated.\n"
                 f"Due date: {due_date.strftime('%B %d, %Y')}\n\n"
-                f"Please pay before the due date to avoid service interruption.\n\n"
+                f"Please pay before the due date to avoid service interruption.\n"
+                f"{portal_line}\n"
                 f"Thank you!"
             )
             db.add(Notification(
@@ -80,7 +94,7 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
                 owner_id=oid,
             ))
             # SMS notification
-            sms_msg = f"Hi {customer.full_name}, your bill of P{amount:,.2f} is due on {due_date.strftime('%b %d')}. Please pay on time to avoid disconnection."
+            sms_msg = f"Hi {customer.full_name}, your bill of P{amount:,.2f} is due on {due_date.strftime('%b %d')}. Please pay on time to avoid disconnection.{portal_sms}"
             db.add(Notification(
                 customer_id=customer.id,
                 type=NotificationType.sms,

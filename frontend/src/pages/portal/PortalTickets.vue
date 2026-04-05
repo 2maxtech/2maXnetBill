@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { getPortalTickets, createPortalTicket } from '../../api/portal'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import Modal from '../../components/common/Modal.vue'
 
 const router = useRouter()
+const route = useRoute()
+const slug = route.params.slug as string
 
 const tickets = ref<any[]>([])
 const loading = ref(false)
@@ -54,7 +56,7 @@ async function handleCreate() {
 }
 
 function goToTicket(ticket: any) {
-  router.push(`/portal/tickets/${ticket.id}`)
+  router.push(`/portal/${slug}/tickets/${ticket.id}`)
 }
 
 onMounted(fetchTickets)

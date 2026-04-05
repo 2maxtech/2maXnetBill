@@ -18,6 +18,7 @@ from app.models.bandwidth_usage import BandwidthUsage
 from app.models.customer_activity import CustomerActivity
 from app.models.ticket import Ticket, TicketMessage
 from app.api.admin.settings import get_branding_settings
+from app.models.app_setting import AppSetting
 from app.services.pdf import generate_invoice_pdf
 
 from jose import jwt, JWTError
@@ -54,6 +55,26 @@ async def get_portal_customer(
     return customer
 
 
+# --- Tenant slug resolver (public, no auth) ---
+
+@router.get("/tenant/{slug}")
+async def resolve_tenant(slug: str, db: AsyncSession = Depends(get_db)):
+    """Resolve a portal slug to tenant branding info."""
+    result = await db.execute(
+        select(AppSetting).where(AppSetting.key == "portal_slug", AppSetting.value == slug)
+    )
+    setting = result.scalar_one_or_none()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Portal not found")
+    tenant_id = setting.owner_id
+    branding = await get_branding_settings(db, tenant_id=tenant_id)
+    return {
+        "tenant_id": str(tenant_id),
+        "company_name": branding.get("company_name", ""),
+        "company_logo_url": branding.get("company_logo_url", ""),
+    }
+
+
 # --- Auth ---
 
 @router.post("/auth/login")
@@ -61,13 +82,32 @@ async def portal_login(
     body: dict,
     db: AsyncSession = Depends(get_db),
 ):
-    email = body.get("email", "").strip()
+    slug = body.get("slug", "").strip()
+    username = body.get("username", "").strip()
     password = body.get("password", "").strip()
 
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="Email and password required")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
 
-    result = await db.execute(select(Customer).where(Customer.email == email))
+    # Resolve tenant from slug
+    if slug:
+        slug_result = await db.execute(
+            select(AppSetting).where(AppSetting.key == "portal_slug", AppSetting.value == slug)
+        )
+        slug_setting = slug_result.scalar_one_or_none()
+        if not slug_setting:
+            raise HTTPException(status_code=404, detail="Portal not found")
+        tenant_id = slug_setting.owner_id
+        result = await db.execute(
+            select(Customer).where(
+                Customer.pppoe_username == username,
+                Customer.owner_id == tenant_id,
+            )
+        )
+    else:
+        # Fallback: email-based login (backwards compat)
+        result = await db.execute(select(Customer).where(Customer.email == username))
+
     customer = result.scalar_one_or_none()
 
     if not customer or customer.pppoe_password != password:
@@ -150,6 +190,7 @@ async def portal_dashboard(
             "name": customer.plan.name,
             "download_mbps": customer.plan.download_mbps,
             "upload_mbps": customer.plan.upload_mbps,
+            "monthly_price": str(customer.plan.monthly_price),
         } if customer.plan else None,
         "outstanding_balance": str(outstanding),
         "session": {
@@ -314,8 +355,8 @@ async def portal_get_tickets(
         {
             "id": str(t.id),
             "subject": t.subject,
-            "status": t.status.value,
-            "priority": t.priority.value,
+            "status": t.status,
+            "priority": t.priority,
             "created_at": t.created_at.isoformat(),
             "resolved_at": t.resolved_at.isoformat() if t.resolved_at else None,
         }
@@ -333,6 +374,7 @@ async def portal_create_ticket(
         customer_id=customer.id,
         subject=body["subject"],
         priority=body.get("priority", "medium"),
+        owner_id=customer.owner_id,
     )
     db.add(ticket)
     await db.flush()
@@ -342,6 +384,7 @@ async def portal_create_ticket(
         sender_type="customer",
         sender_id=customer.id,
         message=body["message"],
+        owner_id=customer.owner_id,
     )
     db.add(msg)
     await db.flush()
@@ -349,8 +392,8 @@ async def portal_create_ticket(
     return {
         "id": str(ticket.id),
         "subject": ticket.subject,
-        "status": ticket.status.value,
-        "priority": ticket.priority.value,
+        "status": ticket.status,
+        "priority": ticket.priority,
         "created_at": ticket.created_at.isoformat(),
     }
 
@@ -370,8 +413,8 @@ async def portal_get_ticket(
     return {
         "id": str(ticket.id),
         "subject": ticket.subject,
-        "status": ticket.status.value,
-        "priority": ticket.priority.value,
+        "status": ticket.status,
+        "priority": ticket.priority,
         "created_at": ticket.created_at.isoformat(),
         "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
         "messages": [
@@ -404,6 +447,7 @@ async def portal_add_message(
         sender_type="customer",
         sender_id=customer.id,
         message=body["message"],
+        owner_id=customer.owner_id,
     )
     db.add(msg)
     await db.flush()
@@ -411,8 +455,8 @@ async def portal_add_message(
     return {
         "id": str(ticket.id),
         "subject": ticket.subject,
-        "status": ticket.status.value,
-        "priority": ticket.priority.value,
+        "status": ticket.status,
+        "priority": ticket.priority,
         "created_at": ticket.created_at.isoformat(),
         "messages": [
             {

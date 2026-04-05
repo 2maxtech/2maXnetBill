@@ -47,6 +47,7 @@ export interface BrandingSettings {
   company_logo_url: string
   invoice_footer: string
   invoice_prefix: string
+  portal_slug: string
 }
 
 export function getBrandingSettings() {
