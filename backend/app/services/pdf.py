@@ -29,6 +29,18 @@ def generate_invoice_pdf(
     template = env.get_template("invoice.html")
     balance = invoice.amount - total_paid
 
+    # Resolve logo URL to absolute file path for WeasyPrint
+    brand = dict(branding or {})
+    logo_url = brand.get("company_logo_url", "")
+    if logo_url:
+        # Convert web path /api/v1/uploads/file.png → file:///app/uploads/file.png
+        filename = logo_url.rsplit("/", 1)[-1]
+        file_path = os.path.join("/app/uploads", filename)
+        if os.path.exists(file_path):
+            brand["company_logo_url"] = f"file://{file_path}"
+        else:
+            brand["company_logo_url"] = ""
+
     html_content = template.render(
         invoice=invoice,
         customer=customer,
@@ -36,7 +48,7 @@ def generate_invoice_pdf(
         payments=payments,
         total_paid=total_paid,
         balance=balance,
-        branding=branding or {},
+        branding=brand,
     )
 
     pdf_bytes = HTML(string=html_content).write_pdf()
