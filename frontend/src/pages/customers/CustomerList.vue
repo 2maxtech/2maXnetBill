@@ -163,11 +163,14 @@ async function handleAdd() {
     addError.value = 'Full name and PPPoE username are required.'
     return
   }
+  if (!addForm.value.plan_id) {
+    addError.value = 'Please select a plan.'
+    return
+  }
   addLoading.value = true
   try {
     const payload: Record<string, any> = { ...addForm.value }
     payload.billing_due_day = parseInt(payload.billing_due_day) || 15
-    if (!payload.plan_id) delete payload.plan_id
     if (!payload.router_id) delete payload.router_id
     if (!payload.area_id) delete payload.area_id
     if (!payload.mac_address) delete payload.mac_address
@@ -175,7 +178,8 @@ async function handleAdd() {
     showAddModal.value = false
     await fetchCustomers()
   } catch (e: any) {
-    addError.value = e.response?.data?.detail || 'Failed to create customer.'
+    const detail = e.response?.data?.detail
+    addError.value = typeof detail === 'string' ? detail : 'Failed to create customer.'
   } finally {
     addLoading.value = false
   }
@@ -220,7 +224,8 @@ async function handleEdit() {
     showEditModal.value = false
     await fetchCustomers()
   } catch (e: any) {
-    editError.value = e.response?.data?.detail || 'Failed to update customer.'
+    const detail = e.response?.data?.detail
+    editError.value = typeof detail === 'string' ? detail : 'Failed to update customer.'
   } finally {
     editLoading.value = false
   }
