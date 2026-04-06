@@ -37,11 +37,15 @@ const ispMenu: MenuItem[] = [
       { path: '/billing/invoices', label: 'Invoices' },
       { path: '/billing/payments', label: 'Payments' },
       { path: '/billing/expenses', label: 'Expenses' },
-      { path: '/billing/vouchers', label: 'Vouchers' },
     ]
   },
   { path: '/active-users', label: 'Active Users', icon: 'wifi' },
-  { path: '/hotspot', label: 'Hotspot', icon: 'hotspot' },
+  {
+    label: 'Hotspot', icon: 'hotspot', children: [
+      { path: '/hotspot', label: 'Users & Sessions' },
+      { path: '/hotspot/vouchers', label: 'Vouchers' },
+    ]
+  },
   { path: '/routers', label: 'Routers', icon: 'server' },
   { path: '/areas', label: 'Areas', icon: 'map-pin' },
   { path: '/tickets', label: 'Tickets', icon: 'ticket' },
@@ -67,7 +71,7 @@ const superAdminMenu: MenuItem[] = [
 
 const menuItems = computed(() => showAdminMenu.value ? ispMenu : superAdminMenu)
 
-const openMenus = ref<string[]>(['Billing', 'System'])
+const openMenus = ref<string[]>(['Billing', 'Hotspot', 'System'])
 
 function toggleMenu(label: string) {
   const idx = openMenus.value.indexOf(label)
