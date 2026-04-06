@@ -1,253 +1,251 @@
 <script setup lang="ts">
-function copyLinuxCmd() {
-  window.navigator.clipboard.writeText('curl -fsSL https://netl.2max.tech/install.sh | sudo bash')
+import { ref } from 'vue'
+
+const installCmd = 'curl -fsSL https://raw.githubusercontent.com/2maxtech/NetLedger/main/scripts/install-onpremise.sh | sudo bash'
+const updateCmd = 'cd /opt/netledger && git pull && docker compose -f docker-compose.onpremise.yml up -d --build'
+
+const copiedInstall = ref(false)
+const copiedUpdate = ref(false)
+
+function copyInstall() {
+  navigator.clipboard.writeText(installCmd)
+  copiedInstall.value = true
+  setTimeout(() => (copiedInstall.value = false), 2000)
 }
 
-function copyWinCommands() {
-  const cmds = [
-    'mkdir C:\\NetLedger; cd C:\\NetLedger',
-    'Invoke-WebRequest -Uri "https://netl.2max.tech/docker-compose.yml" -OutFile "docker-compose.yml"',
-    'Invoke-WebRequest -Uri "https://netl.2max.tech/env.example" -OutFile ".env"',
-    'docker compose pull',
-    'docker compose up -d',
-    'docker compose exec backend alembic upgrade head',
-  ].join('\n')
-  window.navigator.clipboard.writeText(cmds)
+function copyUpdate() {
+  navigator.clipboard.writeText(updateCmd)
+  copiedUpdate.value = true
+  setTimeout(() => (copiedUpdate.value = false), 2000)
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-white">
+  <div class="min-h-screen bg-gray-950 text-gray-100">
     <!-- Navbar -->
-    <nav class="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
-      <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-        <router-link to="/" class="flex items-center gap-3">
-          <img src="/logo-2.png" class="w-9 h-9" />
-          <div>
-            <span class="text-xl font-bold text-gray-900 block leading-tight">NetLedger</span>
-            <span class="text-[10px] text-gray-400 font-medium">by 2max.tech</span>
+    <nav class="fixed top-0 w-full bg-gray-950/80 backdrop-blur-md border-b border-gray-800 z-50">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+        <router-link to="/" class="flex items-center gap-2 sm:gap-3">
+          <img src="/logo-2.png" class="w-7 h-7 sm:w-9 sm:h-9" alt="NetLedger" />
+          <div class="flex flex-col -space-y-1">
+            <span class="text-base sm:text-xl font-bold text-white">NetLedger</span>
+            <span class="text-[9px] sm:text-[10px] text-gray-500 font-medium">by 2max.tech</span>
           </div>
         </router-link>
-        <div class="flex items-center gap-3">
-          <router-link to="/login" class="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors">
+        <div class="flex items-center gap-2 sm:gap-3">
+          <router-link to="/" class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-400 hover:text-white transition-colors">
+            Back to Home
+          </router-link>
+          <router-link to="/login" class="px-3 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors">
             Login
           </router-link>
         </div>
       </div>
     </nav>
 
-    <div class="max-w-4xl mx-auto px-6 pt-28 pb-20">
-      <div class="text-center mb-12">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
-          Self-Hosted Installation
+    <!-- Hero -->
+    <section class="pt-28 sm:pt-36 pb-12 sm:pb-16 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto text-center">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-6">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary" />
+          Self-Hosted
         </div>
-        <h1 class="text-4xl font-bold text-gray-900">Install NetLedger on Your Server</h1>
-        <p class="text-lg text-gray-500 mt-3">Run NetLedger on your own hardware — full control, no cloud dependency</p>
+        <h1 class="text-3xl sm:text-5xl font-bold text-white leading-tight">
+          Self-Hosted <span class="text-primary">NetLedger</span>
+        </h1>
+        <p class="text-base sm:text-lg text-gray-400 mt-4 max-w-2xl mx-auto leading-relaxed">
+          Run your ISP billing on your own server. Full control, your data stays on your network, no cloud dependency.
+        </p>
       </div>
+    </section>
 
-      <!-- Requirements -->
-      <section class="mb-12">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Requirements</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="rounded-xl border border-gray-100 p-5">
-            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path d="M4.632 3.533A2 2 0 016.577 2h6.846a2 2 0 011.945 1.533l1.976 8.234A3.489 3.489 0 0016 11.5H4c-.476 0-.93.095-1.344.267l1.976-8.234z"/><path fill-rule="evenodd" d="M4 13a2 2 0 100 4h12a2 2 0 100-4H4z" clip-rule="evenodd"/></svg>
-            </div>
-            <h3 class="font-semibold text-gray-900 text-sm">Hardware</h3>
-            <ul class="mt-2 text-sm text-gray-500 space-y-1">
-              <li>2 GB RAM minimum</li>
-              <li>20 GB disk space</li>
-              <li>Any x64 or ARM64 CPU</li>
-            </ul>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-5">
-            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-green-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.25 4A2.25 2.25 0 001 6.25v7.5A2.25 2.25 0 003.25 16h7.5A2.25 2.25 0 0013 13.75v-7.5A2.25 2.25 0 0010.75 4h-7.5zM15 9.25a.75.75 0 000 1.5h4.25a.75.75 0 000-1.5H15z" clip-rule="evenodd"/></svg>
-            </div>
-            <h3 class="font-semibold text-gray-900 text-sm">Operating System</h3>
-            <ul class="mt-2 text-sm text-gray-500 space-y-1">
-              <li>Debian 12 (recommended)</li>
-              <li>Ubuntu 22.04 / 24.04</li>
-              <li>Any Linux with Docker</li>
-            </ul>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-5">
-            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-orange-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M.676 6.941A12.964 12.964 0 0110 4c3.456 0 6.626 1.35 8.964 3.555a.75.75 0 01-1.028 1.09A11.466 11.466 0 0010 5.5a11.466 11.466 0 00-7.936 3.145.75.75 0 11-1.028-1.09l.64.286z" clip-rule="evenodd"/></svg>
-            </div>
-            <h3 class="font-semibold text-gray-900 text-sm">Network</h3>
-            <ul class="mt-2 text-sm text-gray-500 space-y-1">
-              <li>Same LAN as MikroTik</li>
-              <li>No port forwarding needed</li>
-              <li>Port 80 available on server</li>
-            </ul>
-          </div>
+    <!-- System Requirements -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-6">System Requirements</h2>
+        <div class="rounded-xl border border-gray-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-900">
+                <th class="text-left px-5 py-3 text-gray-400 font-medium"></th>
+                <th class="text-left px-5 py-3 text-gray-400 font-medium">Minimum</th>
+                <th class="text-left px-5 py-3 text-gray-400 font-medium">Recommended</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+              <tr class="hover:bg-gray-900/50 transition-colors">
+                <td class="px-5 py-3 font-medium text-gray-300">CPU</td>
+                <td class="px-5 py-3 text-gray-400">2 cores</td>
+                <td class="px-5 py-3 text-primary font-medium">4 cores</td>
+              </tr>
+              <tr class="hover:bg-gray-900/50 transition-colors">
+                <td class="px-5 py-3 font-medium text-gray-300">RAM</td>
+                <td class="px-5 py-3 text-gray-400">2 GB</td>
+                <td class="px-5 py-3 text-primary font-medium">4 GB</td>
+              </tr>
+              <tr class="hover:bg-gray-900/50 transition-colors">
+                <td class="px-5 py-3 font-medium text-gray-300">Storage</td>
+                <td class="px-5 py-3 text-gray-400">20 GB</td>
+                <td class="px-5 py-3 text-primary font-medium">40 GB</td>
+              </tr>
+              <tr class="hover:bg-gray-900/50 transition-colors">
+                <td class="px-5 py-3 font-medium text-gray-300">OS</td>
+                <td class="px-5 py-3 text-gray-400">Ubuntu 22.04+ / Debian 12+</td>
+                <td class="px-5 py-3 text-primary font-medium">Ubuntu 24.04</td>
+              </tr>
+              <tr class="hover:bg-gray-900/50 transition-colors">
+                <td class="px-5 py-3 font-medium text-gray-300">Network</td>
+                <td class="px-5 py-3 text-gray-400">LAN access to MikroTik router</td>
+                <td class="px-5 py-3 text-gray-500">--</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Quick Install -->
-      <section class="mb-12">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Quick Install (Linux)</h2>
-        <p class="text-sm text-gray-500 mb-4">Run this single command on a fresh Debian/Ubuntu server:</p>
-        <div class="relative rounded-xl bg-gray-900 p-5 overflow-x-auto">
-          <code class="text-green-400 text-sm font-mono">curl -fsSL https://netl.2max.tech/install.sh | sudo bash</code>
+    <!-- Installation -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Installation</h2>
+        <p class="text-sm text-gray-400 mb-6">Run this single command on a fresh Debian/Ubuntu server:</p>
+
+        <div class="relative rounded-xl bg-gray-900 border border-gray-800 p-5 overflow-x-auto group">
+          <code class="text-primary text-sm font-mono break-all">{{ installCmd }}</code>
           <button
-            @click="copyLinuxCmd"
-            class="absolute top-3 right-3 px-2.5 py-1 text-xs text-gray-400 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            @click="copyInstall"
+            class="absolute top-3 right-3 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+            :class="copiedInstall ? 'text-green-400 bg-green-900/30' : 'text-gray-400 bg-gray-800 hover:bg-gray-700'"
           >
-            Copy
+            {{ copiedInstall ? 'Copied!' : 'Copy' }}
           </button>
         </div>
-        <p class="text-xs text-gray-400 mt-2">This installs Docker (if needed), downloads NetLedger, and starts all services. Takes about 2 minutes.</p>
-      </section>
+        <p class="text-xs text-gray-500 mt-3">
+          The installer checks system requirements, installs Docker (if needed), downloads NetLedger, generates secure credentials, and starts all services. Takes about 2 minutes.
+        </p>
+      </div>
+    </section>
 
-      <!-- What it does -->
-      <section class="mb-12">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">What the installer does</h2>
-        <div class="rounded-xl border border-gray-100 divide-y divide-gray-100">
-          <div v-for="(step, i) in installSteps" :key="i" class="flex items-start gap-4 p-4">
-            <span class="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{{ i + 1 }}</span>
-            <div>
-              <p class="text-sm font-medium text-gray-900">{{ step.title }}</p>
-              <p class="text-sm text-gray-500 mt-0.5">{{ step.desc }}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Manual Install -->
-      <section class="mb-12">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Manual Install (Docker Compose)</h2>
-        <p class="text-sm text-gray-500 mb-4">If you prefer to set things up manually:</p>
+    <!-- Quick Start -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-6">Quick Start</h2>
+        <p class="text-sm text-gray-400 mb-8">After the installer finishes, follow these steps to get your ISP billing up and running:</p>
 
         <div class="space-y-4">
-          <div>
-            <h3 class="text-sm font-semibold text-gray-800 mb-2">1. Create a directory and docker-compose.yml</h3>
-            <div class="rounded-xl bg-gray-900 p-4 overflow-x-auto">
-              <pre class="text-sm text-gray-300 font-mono">mkdir -p /opt/netledger && cd /opt/netledger</pre>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-sm font-semibold text-gray-800 mb-2">2. Create .env file</h3>
-            <div class="rounded-xl bg-gray-900 p-4 overflow-x-auto">
-              <pre class="text-sm text-gray-300 font-mono whitespace-pre">POSTGRES_USER=netledger
-POSTGRES_PASSWORD=<span class="text-green-400">your-secure-password</span>
-POSTGRES_DB=netledger
-DATABASE_URL=postgresql+asyncpg://netledger:<span class="text-green-400">your-secure-password</span>@db:5432/netledger
-REDIS_URL=redis://redis:6379/0
-SECRET_KEY=<span class="text-green-400">generate-a-random-64-char-string</span></pre>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-sm font-semibold text-gray-800 mb-2">3. Start NetLedger</h3>
-            <div class="rounded-xl bg-gray-900 p-4 overflow-x-auto">
-              <pre class="text-sm text-gray-300 font-mono whitespace-pre">docker compose pull
-docker compose up -d
-docker compose exec backend alembic upgrade head</pre>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-sm font-semibold text-gray-800 mb-2">4. Open in browser</h3>
-            <p class="text-sm text-gray-500">Navigate to <code class="text-primary bg-primary/5 px-1.5 py-0.5 rounded">http://your-server-ip</code> and login with <code class="text-primary bg-primary/5 px-1.5 py-0.5 rounded">admin / admin123</code></p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Windows -->
-      <section class="mb-12">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Windows Installation</h2>
-        <div class="rounded-xl border border-gray-100 p-6">
-          <div class="space-y-4">
+          <div v-for="(step, i) in quickStartSteps" :key="i"
+            class="flex items-start gap-4 rounded-xl bg-gray-900 border border-gray-800 p-5 hover:border-gray-700 transition-colors">
+            <span class="w-8 h-8 rounded-lg bg-primary/10 text-primary text-sm font-bold flex items-center justify-center shrink-0 mt-0.5">
+              {{ i + 1 }}
+            </span>
             <div>
-              <h3 class="text-sm font-semibold text-gray-800 mb-2">1. Install Docker Desktop</h3>
-              <p class="text-sm text-gray-500">Download and install <a href="https://www.docker.com/products/docker-desktop/" target="_blank" class="text-primary hover:underline">Docker Desktop for Windows</a>. Requires Windows 10/11 with WSL2 enabled.</p>
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-gray-800 mb-2">2. Open PowerShell as Administrator and run:</h3>
-              <div class="rounded-xl bg-gray-900 p-4 overflow-x-auto">
-                <pre class="text-sm text-gray-300 font-mono whitespace-pre">mkdir C:\NetLedger; cd C:\NetLedger
-Invoke-WebRequest -Uri "https://netl.2max.tech/docker-compose.yml" -OutFile "docker-compose.yml"
-Invoke-WebRequest -Uri "https://netl.2max.tech/env.example" -OutFile ".env"
-docker compose pull
-docker compose up -d
-docker compose exec backend alembic upgrade head</pre>
-              </div>
-              <button
-                @click="copyWinCommands"
-                class="mt-2 px-3 py-1.5 text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Copy Commands
-              </button>
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold text-gray-800 mb-2">3. Open browser</h3>
-              <p class="text-sm text-gray-500">Go to <code class="text-primary bg-primary/5 px-1.5 py-0.5 rounded">http://localhost</code> and login with <code class="text-primary bg-primary/5 px-1.5 py-0.5 rounded">admin / admin123</code></p>
+              <p class="text-sm font-medium text-white">{{ step.title }}</p>
+              <p class="text-sm text-gray-400 mt-1">{{ step.desc }}</p>
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- After Install -->
-      <section class="mb-12">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">After Installation</h2>
+    <!-- Free Tier -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-6">Free Tier Includes</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-for="item in freeTierItems" :key="item"
+            class="flex items-start gap-3 rounded-xl bg-gray-900 border border-gray-800 p-4">
+            <svg class="w-5 h-5 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+            </svg>
+            <span class="text-sm text-gray-300">{{ item }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Updating -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Updating</h2>
+        <p class="text-sm text-gray-400 mb-6">Pull the latest version and rebuild:</p>
+
+        <div class="relative rounded-xl bg-gray-900 border border-gray-800 p-5 overflow-x-auto group">
+          <code class="text-primary text-sm font-mono break-all">{{ updateCmd }}</code>
+          <button
+            @click="copyUpdate"
+            class="absolute top-3 right-3 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+            :class="copiedUpdate ? 'text-green-400 bg-green-900/30' : 'text-gray-400 bg-gray-800 hover:bg-gray-700'"
+          >
+            {{ copiedUpdate ? 'Copied!' : 'Copy' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Useful Commands -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-6">Useful Commands</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="rounded-xl border border-gray-100 p-5">
-            <h3 class="font-semibold text-gray-900 text-sm mb-2">First Steps</h3>
-            <ol class="text-sm text-gray-500 space-y-1.5 list-decimal list-inside">
-              <li>Change default admin password</li>
-              <li>Go to Setup Guide in the sidebar</li>
-              <li>Add your MikroTik router (local IP works!)</li>
-              <li>Create service plans</li>
-              <li>Add customers</li>
-            </ol>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-5">
-            <h3 class="font-semibold text-gray-900 text-sm mb-2">Useful Commands</h3>
-            <div class="text-sm text-gray-500 space-y-1.5 font-mono">
-              <p><span class="text-gray-400">#</span> View logs</p>
-              <p class="text-primary">docker compose logs -f</p>
-              <p><span class="text-gray-400">#</span> Stop</p>
-              <p class="text-primary">docker compose down</p>
-              <p><span class="text-gray-400">#</span> Update</p>
-              <p class="text-primary">docker compose pull && docker compose up -d</p>
-            </div>
+          <div v-for="cmd in usefulCommands" :key="cmd.label"
+            class="rounded-xl bg-gray-900 border border-gray-800 p-4">
+            <p class="text-xs text-gray-500 font-medium mb-2">{{ cmd.label }}</p>
+            <code class="text-sm text-primary font-mono">{{ cmd.command }}</code>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Support -->
-      <section class="rounded-xl bg-gradient-to-br from-sidebar to-gray-900 p-8 text-center">
-        <h2 class="text-xl font-bold text-white mb-2">Need Help?</h2>
-        <p class="text-gray-400 text-sm mb-4">Contact 2max Tech support for installation assistance</p>
-        <a href="mailto:support@2max.tech" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-xl transition-colors">
-          support@2max.tech
-        </a>
-      </section>
-    </div>
+    <!-- Support CTA -->
+    <section class="py-10 sm:py-14 px-4 sm:px-6">
+      <div class="max-w-5xl mx-auto">
+        <div class="rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 p-8 sm:p-10 text-center">
+          <h2 class="text-xl font-bold text-white mb-2">Need Help?</h2>
+          <p class="text-gray-400 text-sm mb-5">Contact 2max Tech support for installation assistance</p>
+          <a href="mailto:support@2max.tech"
+            class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-xl transition-colors">
+            support@2max.tech
+          </a>
+        </div>
+      </div>
+    </section>
 
     <!-- Footer -->
-    <footer class="py-8 px-6 border-t border-gray-100">
-      <div class="max-w-4xl mx-auto flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <img src="/logo-2.png" class="w-5 h-5" />
+    <footer class="py-8 sm:py-10 px-4 sm:px-6 border-t border-gray-800">
+      <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <img src="/logo-2.png" class="w-5 h-5" alt="NetLedger" />
           <span class="text-sm text-gray-500">NetLedger by 2max Tech</span>
         </div>
-        <p class="text-sm text-gray-400">&copy; {{ new Date().getFullYear() }} 2max Tech</p>
+        <p class="text-sm text-gray-600">&copy; {{ new Date().getFullYear() }} 2max Tech</p>
       </div>
     </footer>
   </div>
 </template>
 
 <script lang="ts">
-const installSteps = [
-  { title: 'Installs Docker', desc: 'Automatically installs Docker Engine and Docker Compose if not already present' },
-  { title: 'Creates configuration', desc: 'Generates secure random passwords for the database and secret key' },
-  { title: 'Downloads NetLedger', desc: 'Pulls the latest NetLedger Docker images (backend, frontend, database, Redis)' },
-  { title: 'Starts all services', desc: 'Launches 6 containers: PostgreSQL, Redis, Backend API, Frontend, Celery Worker, Celery Beat' },
-  { title: 'Sets up database', desc: 'Runs database migrations to create all tables' },
-  { title: 'Creates admin account', desc: 'Creates the default admin user (admin / admin123) — change this after first login!' },
+const quickStartSteps = [
+  { title: 'Open your server in a browser', desc: 'Navigate to http://your-server-ip — the setup wizard will appear on first visit.' },
+  { title: 'Complete the setup wizard', desc: 'Enter your company name and create your admin account.' },
+  { title: 'Add your MikroTik router', desc: 'Go to Settings > Routers and add your MikroTik router IP, username, and password.' },
+  { title: 'Import customers from MikroTik', desc: 'NetLedger can import existing PPPoE subscribers directly from your router.' },
+  { title: 'Set up plans and pricing', desc: 'Create bandwidth plans with monthly pricing that map to MikroTik PPPoE profiles.' },
+  { title: 'Configure billing', desc: 'Go to Settings > Billing to set your billing cycle, grace period, and enforcement rules.' },
+  { title: 'Optional: Set up SMTP for email notifications', desc: 'Configure email settings in Settings > Notifications to send invoices and payment reminders.' },
+]
+
+const freeTierItems = [
+  'Up to 35 subscribers',
+  '1 MikroTik router',
+  'Billing & invoicing',
+  'Customer portal',
+  'Throttle/disconnect enforcement',
+]
+
+const usefulCommands = [
+  { label: 'View logs', command: 'cd /opt/netledger && docker compose -f docker-compose.onpremise.yml logs -f' },
+  { label: 'Stop services', command: 'cd /opt/netledger && docker compose -f docker-compose.onpremise.yml down' },
+  { label: 'Restart services', command: 'cd /opt/netledger && docker compose -f docker-compose.onpremise.yml restart' },
+  { label: 'Check status', command: 'cd /opt/netledger && docker compose -f docker-compose.onpremise.yml ps' },
 ]
 </script>

@@ -21,6 +21,30 @@ if [ -f /etc/os-release ]; then
   echo "Detected OS: $PRETTY_NAME"
 fi
 
+# System requirements check
+echo "Checking system requirements..."
+TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
+CPU_CORES=$(nproc)
+DISK_FREE=$(df -m / | awk 'NR==2{print $4}')
+
+echo "  CPU cores: $CPU_CORES (minimum: 2)"
+echo "  RAM: ${TOTAL_RAM}MB (minimum: 2048MB)"
+echo "  Free disk: ${DISK_FREE}MB (minimum: 10000MB)"
+
+if [ "$CPU_CORES" -lt 2 ]; then
+  echo "Warning: Less than 2 CPU cores. Performance may be poor."
+fi
+if [ "$TOTAL_RAM" -lt 1800 ]; then
+  echo "Error: At least 2GB RAM required. Found ${TOTAL_RAM}MB."
+  exit 1
+fi
+if [ "$DISK_FREE" -lt 8000 ]; then
+  echo "Error: At least 10GB free disk space required. Found ${DISK_FREE}MB."
+  exit 1
+fi
+echo "System requirements: OK"
+echo ""
+
 if ! command -v docker &> /dev/null; then
   echo "Installing Docker..."
   curl -fsSL https://get.docker.com | bash
@@ -78,16 +102,24 @@ done
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 echo ""
-echo "  ╔═══════════════════════════════════════╗"
-echo "  ║    NetLedger is ready!                 ║"
-echo "  ╠═══════════════════════════════════════╣"
-echo "  ║                                       ║"
-echo "  ║  Open in your browser:                ║"
-echo "  ║  http://$SERVER_IP                    ║"
-echo "  ║                                       ║"
-echo "  ║  Complete the setup wizard to create   ║"
-echo "  ║  your admin account.                   ║"
-echo "  ║                                       ║"
-echo "  ╚═══════════════════════════════════════╝"
+echo "  ╔════════════════════════════════════════════╗"
+echo "  ║       NetLedger is ready!                   ║"
+echo "  ╠════════════════════════════════════════════╣"
+echo "  ║                                            ║"
+echo "  ║  Open in your browser:                     ║"
+echo "  ║  http://$SERVER_IP                         ║"
+echo "  ║                                            ║"
+echo "  ║  Complete the setup wizard to create        ║"
+echo "  ║  your admin account.                        ║"
+echo "  ║                                            ║"
+echo "  ║  Documentation:                            ║"
+echo "  ║  https://netl.2max.tech/self-hosted        ║"
+echo "  ║                                            ║"
+echo "  ╚════════════════════════════════════════════╝"
 echo ""
-echo "To update later: cd $INSTALL_DIR && git pull && docker compose -f docker-compose.onpremise.yml up -d --build"
+echo "System requirements:"
+echo "  Minimum: 2 CPU, 2GB RAM, 20GB disk"
+echo "  Recommended: 4 CPU, 4GB RAM, 40GB disk"
+echo ""
+echo "To update: cd $INSTALL_DIR && git pull && docker compose -f docker-compose.onpremise.yml up -d --build"
+echo ""
