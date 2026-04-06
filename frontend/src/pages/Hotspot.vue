@@ -337,31 +337,37 @@ onMounted(async () => { await loadRouters() })
         <div v-if="profileError" class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ profileError }}</div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Profile Name *</label>
-          <input v-model="profileForm.name" type="text" required placeholder="e.g. 1hr-5M"
+          <input v-model="profileForm.name" type="text" required placeholder="e.g. 1hr-5M, 1day-10M"
             class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Rate Limit</label>
-          <input v-model="profileForm.rate_limit" type="text" placeholder="e.g. 5M/10M (upload/download)"
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Rate Limit *</label>
+          <input v-model="profileForm.rate_limit" type="text" placeholder="e.g. 5M/10M"
             class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
-          <p class="text-xs text-gray-400 mt-1">Format: upload/download (e.g. 5M/10M)</p>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Session Timeout</label>
-            <input v-model="profileForm.session_timeout" type="text" placeholder="e.g. 1h, 1d, 30m"
-              class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Shared Users</label>
-            <input v-model="profileForm.shared_users" type="number" min="1" placeholder="1"
-              class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
-          </div>
+          <p class="text-xs text-gray-400 mt-1">Upload/Download speed (e.g. 5M/10M = 5Mbps up, 10Mbps down)</p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Address Pool</label>
-          <input v-model="profileForm.address_pool" type="text" placeholder="e.g. hotspot-pool"
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Session Timeout *</label>
+          <input v-model="profileForm.session_timeout" type="text" placeholder="e.g. 1h, 1d, 30m"
             class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+          <p class="text-xs text-gray-400 mt-1">How long the voucher stays active (1h = 1 hour, 1d = 1 day)</p>
+        </div>
+        <div class="border-t border-gray-100 pt-4 mt-2">
+          <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Advanced (optional)</p>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Shared Users</label>
+              <input v-model="profileForm.shared_users" type="number" min="1" placeholder="1"
+                class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+              <p class="text-xs text-gray-400 mt-1">Max devices per voucher code</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Address Pool</label>
+              <input v-model="profileForm.address_pool" type="text" placeholder="Uses router default"
+                class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+              <p class="text-xs text-gray-400 mt-1">Leave blank to use hotspot server's pool</p>
+            </div>
+          </div>
         </div>
       </form>
       <template #footer>
