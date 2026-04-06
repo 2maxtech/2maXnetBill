@@ -114,22 +114,25 @@ async def get_dashboard(
     overdue_count = overdue_row[0]
     overdue_amount = float(overdue_row[1])
 
-    # Recent payments (last 5)
+    # Recent payments (last 5) with customer name
     recent_payments_result = await db.execute(
         select(Payment)
         .where(Payment.owner_id == tid)
         .order_by(Payment.received_at.desc())
         .limit(5)
     )
-    recent_payments = [
-        {
+    recent_payments = []
+    for p in recent_payments_result.scalars().all():
+        customer_name = None
+        if p.invoice and p.invoice.customer:
+            customer_name = p.invoice.customer.full_name
+        recent_payments.append({
             "id": str(p.id),
             "amount": str(p.amount),
             "method": p.method.value,
             "received_at": p.received_at.isoformat() if p.received_at else None,
-        }
-        for p in recent_payments_result.scalars().all()
-    ]
+            "customer_name": customer_name,
+        })
 
     # Revenue last 6 months
     revenue_trend = []
