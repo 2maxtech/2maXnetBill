@@ -7,7 +7,7 @@ celery = Celery(
     "netbill",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.billing"],
+    include=["app.tasks.billing", "app.tasks.update_checker"],
 )
 
 celery.conf.beat_schedule = {
@@ -30,6 +30,10 @@ celery.conf.beat_schedule = {
     "process-notifications": {
         "task": "app.tasks.billing.process_notifications_task",
         "schedule": 300.0,  # Every 5 minutes
+    },
+    "check-for-updates": {
+        "task": "app.tasks.update_checker.check_updates_task",
+        "schedule": crontab(hour="3", minute="30"),
     },
 }
 

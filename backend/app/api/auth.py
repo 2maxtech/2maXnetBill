@@ -270,6 +270,8 @@ async def verify_email_change(token: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    if app_settings.DEPLOYMENT_MODE == "onpremise":
+        raise HTTPException(status_code=404, detail="Not found")
     # Check for duplicate username or email
     from sqlalchemy import or_
     existing = await db.execute(
@@ -309,6 +311,8 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/verify")
 async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     """Verify email confirmation token and activate user."""
+    if app_settings.DEPLOYMENT_MODE == "onpremise":
+        raise HTTPException(status_code=404, detail="Not found")
     payload = decode_token(token)
     if payload is None or payload.get("role") != "verify":
         raise HTTPException(status_code=400, detail="Invalid or expired verification link")

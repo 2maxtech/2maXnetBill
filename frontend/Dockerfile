@@ -1,4 +1,6 @@
 FROM node:20-alpine AS build
+ARG VITE_DEPLOYMENT_MODE=saas
+ENV VITE_DEPLOYMENT_MODE=$VITE_DEPLOYMENT_MODE
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

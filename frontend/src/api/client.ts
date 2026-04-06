@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { isOnPremise } from '../composables/useDeploymentMode'
 
 let _tenantId: string | null = null
 
@@ -94,7 +95,11 @@ portalApi.interceptors.response.use(
       localStorage.removeItem('portal_token')
       localStorage.removeItem('portal_customer')
       localStorage.removeItem('portal_slug')
-      window.location.href = slug ? `/portal/${slug}/login` : '/'
+      if (isOnPremise) {
+        window.location.href = '/portal/login'
+      } else {
+        window.location.href = slug ? `/portal/${slug}/login` : '/'
+      }
     }
     return Promise.reject(error)
   }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { isSaaS } from '../composables/useDeploymentMode'
 import Modal from '../components/common/Modal.vue'
 import ConfirmDialog from '../components/common/ConfirmDialog.vue'
 import StatusBadge from '../components/common/StatusBadge.vue'
@@ -378,7 +379,7 @@ onMounted(loadRouters)
                 <div class="flex items-center justify-end gap-2">
                   <button @click="viewStatus(r)" class="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Status</button>
                   <button @click="askImport(r)" class="text-xs font-medium text-green-600 hover:text-green-700 transition-colors">Import</button>
-                  <button @click="startVpnSetup(r)" class="text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors">VPN</button>
+                  <button v-if="isSaaS" @click="startVpnSetup(r)" class="text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors">VPN</button>
                   <button @click="openEdit(r)" class="text-xs font-medium text-primary hover:text-primary-hover transition-colors">Edit</button>
                   <button @click="askDelete(r.id)" class="text-xs font-medium text-red-600 hover:text-red-700 transition-colors">Delete</button>
                 </div>

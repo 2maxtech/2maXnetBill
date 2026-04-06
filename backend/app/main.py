@@ -21,6 +21,8 @@ from app.api.admin.ipam import router as ipam_router
 from app.api.admin.audit import router as audit_router
 from app.api.admin.vpn import router as vpn_router
 from app.api.admin.libreqos import router as libreqos_router
+from app.api.admin.system import router as system_router
+from app.api.setup import router as setup_router
 from app.core.config import settings
 
 app = FastAPI(title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_PREFIX}/openapi.json")
@@ -49,14 +51,28 @@ app.include_router(tickets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(ipam_router, prefix=settings.API_V1_PREFIX)
 app.include_router(audit_router, prefix=settings.API_V1_PREFIX)
 app.include_router(organizations_router, prefix=settings.API_V1_PREFIX)
-app.include_router(vpn_router, prefix=settings.API_V1_PREFIX)
+if settings.DEPLOYMENT_MODE != "onpremise":
+    app.include_router(vpn_router, prefix=settings.API_V1_PREFIX)
 app.include_router(libreqos_router, prefix=settings.API_V1_PREFIX)
+app.include_router(setup_router, prefix=settings.API_V1_PREFIX)
+app.include_router(system_router, prefix=settings.API_V1_PREFIX)
 
 
 # Serve uploaded files
 UPLOAD_DIR = "/app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+
+@app.get(f"{settings.API_V1_PREFIX}/releases/latest")
+async def latest_release():
+    """Public endpoint for on-premise installations to check for updates."""
+    return {
+        "version": settings.APP_VERSION,
+        "release_notes": "Latest release of NetLedger",
+        "release_date": "2026-04-06",
+        "download_url": "https://github.com/2maxtech/NetLedger/releases/latest",
+    }
 
 
 @app.get("/health")

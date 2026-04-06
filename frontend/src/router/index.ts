@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isOnPremise } from '../composables/useDeploymentMode'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -10,20 +11,41 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      component: () => import('../pages/Landing.vue'),
+      component: () => isOnPremise ? import('../pages/Login.vue') : import('../pages/Landing.vue'),
     },
     {
       path: '/login',
       component: () => import('../pages/Login.vue'),
     },
-    {
+    ...(!isOnPremise ? [{
       path: '/register',
       component: () => import('../pages/Register.vue'),
-    },
+    }] : []),
     {
       path: '/self-hosted',
       component: () => import('../pages/SelfHosted.vue'),
     },
+    {
+      path: '/setup',
+      component: () => import('../pages/Setup.vue'),
+    },
+    ...(isOnPremise ? [
+      {
+        path: '/portal/login',
+        component: () => import('../pages/portal/PortalLogin.vue'),
+      },
+      {
+        path: '/portal',
+        component: () => import('../components/layout/PortalLayout.vue'),
+        children: [
+          { path: '', component: () => import('../pages/portal/PortalDashboard.vue') },
+          { path: 'invoices', component: () => import('../pages/portal/PortalInvoices.vue') },
+          { path: 'usage', component: () => import('../pages/portal/PortalUsage.vue') },
+          { path: 'tickets', component: () => import('../pages/portal/PortalTickets.vue') },
+          { path: 'tickets/:id', component: () => import('../pages/portal/PortalTicketDetail.vue') },
+        ],
+      },
+    ] : []),
     {
       path: '/portal/:slug/login',
       component: () => import('../pages/portal/PortalLogin.vue'),
@@ -71,14 +93,28 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
-  const publicPaths = ['/', '/login', '/register', '/self-hosted']
+router.beforeEach(async (to) => {
+  const publicPaths = ['/', '/login', '/register', '/self-hosted', '/setup']
   const isPortal = to.path.startsWith('/portal')
-  const isPortalLogin = to.matched.some(r => r.path === '/portal/:slug/login')
-  if (publicPaths.includes(to.path) || isPortalLogin) return true
+  const isPortalLogin = to.matched.some(r => r.path === '/portal/:slug/login') || (isOnPremise && to.path === '/portal/login')
+  if (publicPaths.includes(to.path) || isPortalLogin) {
+    // On-premise: redirect to setup if unconfigured
+    if (isOnPremise && to.path !== '/setup' && !localStorage.getItem('setup_done')) {
+      try {
+        const resp = await fetch('/api/v1/setup/status')
+        const data = await resp.json()
+        if (!data.configured) return '/setup'
+        localStorage.setItem('setup_done', '1')
+      } catch { /* allow navigation */ }
+    }
+    return true
+  }
   if (isPortal) {
-    const slug = to.params.slug as string
-    if (!localStorage.getItem('portal_token')) return `/portal/${slug}/login`
+    if (!localStorage.getItem('portal_token')) {
+      if (isOnPremise) return '/portal/login'
+      const slug = to.params.slug as string
+      return slug ? `/portal/${slug}/login` : '/'
+    }
   } else {
     if (!localStorage.getItem('access_token')) return '/login'
   }

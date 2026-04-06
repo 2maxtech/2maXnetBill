@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { isSaaS } from '../composables/useDeploymentMode'
 import api from '../api/client'
 
 const router = useRouter()
@@ -174,7 +175,7 @@ async function handleLogin() {
       </div>
 
       <!-- Register link -->
-      <p class="text-center text-sm text-gray-400 mt-5">
+      <p v-if="isSaaS" class="text-center text-sm text-gray-400 mt-5">
         Don't have an account?
         <router-link to="/register" class="text-primary font-medium hover:underline">Register</router-link>
       </p>

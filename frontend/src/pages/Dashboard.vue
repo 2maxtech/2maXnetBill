@@ -2,6 +2,8 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { getDashboard, type DashboardData } from '../api/network'
 import { getRouters, getRouterStatus, type RouterType, type RouterStatus } from '../api/routers'
+import { isOnPremise } from '../composables/useDeploymentMode'
+import { checkForUpdate, type UpdateInfo } from '../api/setup'
 import StatCard from '../components/common/StatCard.vue'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import {
@@ -20,6 +22,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 const data = ref<DashboardData | null>(null)
 const loading = ref(true)
 const error = ref('')
+const updateInfo = ref<UpdateInfo | null>(null)
 
 // Multi-router state
 const routers = ref<RouterType[]>([])
@@ -58,9 +61,15 @@ async function fetchDashboard() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchDashboard()
   interval = setInterval(fetchDashboard, 5000)
+  if (isOnPremise) {
+    try {
+      const { data: ud } = await checkForUpdate()
+      if (ud.update_available) updateInfo.value = ud
+    } catch { /* ignore */ }
+  }
 })
 
 onUnmounted(() => {
@@ -173,6 +182,18 @@ function formatDate(s: string): string {
 
 <template>
   <div class="space-y-5">
+    <!-- Update banner (on-premise only) -->
+    <div v-if="updateInfo" class="rounded-xl bg-blue-50 border border-blue-200 p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg class="w-5 h-5 text-blue-600 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clip-rule="evenodd"/></svg>
+        <div>
+          <p class="text-sm font-medium text-blue-900">Update available: v{{ updateInfo.version }}</p>
+          <p v-if="updateInfo.release_notes" class="text-xs text-blue-700 mt-0.5">{{ updateInfo.release_notes }}</p>
+        </div>
+      </div>
+      <a v-if="updateInfo.download_url" :href="updateInfo.download_url" target="_blank" class="shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors">View Update</a>
+    </div>
+
     <div>
       <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
       <p class="text-sm text-gray-500 mt-0.5">Real-time overview of your ISP operations</p>

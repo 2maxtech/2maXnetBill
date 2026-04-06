@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
 
+    # Deployment mode
+    DEPLOYMENT_MODE: str = "saas"  # "saas" or "onpremise"
+    APP_VERSION: str = "1.0.0"
+    UPDATE_CHECK_URL: str = "https://netl.2max.tech/api/v1/releases/latest"
+
     # MikroTik RouterOS
     MIKROTIK_URL: str = "http://192.168.40.30"
     MIKROTIK_USER: str = "admin"
