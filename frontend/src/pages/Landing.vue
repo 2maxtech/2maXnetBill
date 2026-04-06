@@ -38,9 +38,9 @@ onMounted(() => {
     <section class="pt-32 pb-20 px-6">
       <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-6">
-            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            ISP Billing & Network Management
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-600 text-xs font-medium mb-6">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            Free During Beta
           </div>
           <h1 class="text-5xl font-bold text-gray-900 leading-tight">
             Manage your ISP<br />
@@ -50,8 +50,8 @@ onMounted(() => {
             NetLedger is a complete billing, subscriber management, and MikroTik integration platform built for Internet Service Providers.
           </p>
           <div class="flex items-center gap-4 mt-8">
-            <router-link to="/login" class="px-6 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5">
-              Get Started
+            <router-link to="/register" class="px-6 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5">
+              Join the Beta — It's Free
             </router-link>
             <a href="#features" class="px-6 py-3 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
               Learn More
@@ -170,32 +170,36 @@ onMounted(() => {
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           <div class="rounded-xl border-2 border-primary bg-primary/5 p-8">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary text-white mb-4">Recommended</span>
+            <div class="flex items-center gap-2 mb-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary text-white">Recommended</span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Free Beta</span>
+            </div>
             <h3 class="text-xl font-bold text-gray-900">Cloud (SaaS)</h3>
-            <p class="text-sm text-gray-500 mt-2">We host everything. You just sign up and start managing.</p>
+            <p class="text-sm text-gray-500 mt-2">We host everything. Sign up and start managing your ISP — completely free during the beta period.</p>
             <ul class="mt-5 space-y-2.5 text-sm text-gray-600">
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> No server to maintain</li>
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Automatic updates</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Access from anywhere</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg> <span>Your MikroTik router must be accessible from the internet <span class="text-gray-400">(via public IP, DDNS, or VPN)</span></span></li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Secure VPN tunnel to your router</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> All features included — no limits</li>
             </ul>
             <router-link to="/register" class="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl transition-colors">
-              Get Started Free
+              Join the Beta — It's Free
             </router-link>
           </div>
-          <div class="rounded-xl border border-gray-200 p-8">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 mb-4">Advanced</span>
-            <h3 class="text-xl font-bold text-gray-900">Self-Hosted (Docker)</h3>
-            <p class="text-sm text-gray-500 mt-2">Install on your own server. Full control, your data stays local.</p>
-            <ul class="mt-5 space-y-2.5 text-sm text-gray-600">
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Router on same LAN — no port forwarding</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Data stays on your network</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> One-command Docker install</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-400 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg> Requires Debian/Ubuntu or Windows with Docker</li>
+          <div class="rounded-xl border border-gray-200 p-8 relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-bold px-6 py-1 rotate-45 translate-x-6 translate-y-3">SOON</div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 mb-4">Coming Soon</span>
+            <h3 class="text-xl font-bold text-gray-900">On-Premise (Docker)</h3>
+            <p class="text-sm text-gray-500 mt-2">Install on your own server. Full control, your data stays on your network.</p>
+            <ul class="mt-5 space-y-2.5 text-sm text-gray-500">
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Router on same LAN — no VPN needed</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Data stays on your network</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> One-command Docker install</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Debian/Ubuntu or Windows with Docker</li>
             </ul>
-            <router-link to="/self-hosted" class="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
-              View Install Guide
-            </router-link>
+            <button disabled class="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-gray-400 bg-gray-100 rounded-xl cursor-not-allowed">
+              Coming Soon
+            </button>
           </div>
         </div>
       </div>
@@ -205,13 +209,13 @@ onMounted(() => {
     <section class="py-20 px-6 bg-gradient-to-br from-sidebar to-gray-900">
       <div class="max-w-3xl mx-auto text-center">
         <h2 class="text-3xl font-bold text-white">Ready to streamline your ISP operations?</h2>
-        <p class="text-gray-400 mt-4 text-lg">Start managing subscribers, billing, and MikroTik routers from a single platform.</p>
+        <p class="text-gray-400 mt-4 text-lg">Join the beta and get full access to every feature — completely free while we're in beta testing.</p>
         <div class="flex items-center justify-center gap-4 mt-8">
           <router-link to="/register" class="px-8 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5">
-            Start Free
+            Join the Beta — It's Free
           </router-link>
-          <router-link to="/self-hosted" class="px-8 py-3 text-sm font-semibold text-white border border-white/20 hover:bg-white/10 rounded-xl transition-colors">
-            Self-Host Guide
+          <router-link to="/login" class="px-8 py-3 text-sm font-semibold text-white border border-white/20 hover:bg-white/10 rounded-xl transition-colors">
+            Admin Login
           </router-link>
         </div>
       </div>
