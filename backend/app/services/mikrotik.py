@@ -274,6 +274,16 @@ class MikroTikClient:
         resp = await self._request("GET", "ppp/active")
         return resp.json()
 
+    async def kick_session(self, username: str) -> bool:
+        """Remove active PPP session by username, forcing reconnect with new profile."""
+        sessions = await self.get_active_sessions()
+        for s in sessions:
+            if s.get("name") == username:
+                await self._request("DELETE", f"ppp/active/{s['.id']}")
+                logger.info("Kicked active session for '%s'", username)
+                return True
+        return False
+
 
 # --- Client Factory + Cache ---
 

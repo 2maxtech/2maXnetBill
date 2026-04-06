@@ -322,6 +322,7 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
                                 throttle_rate = f"{settings.THROTTLE_UPLOAD_KBPS}k/{settings.THROTTLE_DOWNLOAD_MBPS}M"
                                 await client.ensure_profile(throttle_name, throttle_rate)
                                 await client.update_secret(customer.mikrotik_secret_id, {"profile": throttle_name})
+                                await client.kick_session(customer.pppoe_username)
                         except Exception as e:
                             logger.error(f"MikroTik throttle failed for {customer.id}: {e}")
                     else:
@@ -350,6 +351,7 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
                             client, _ = await get_client_for_customer(db, customer)
                             if client:
                                 await client.disable_secret(customer.mikrotik_secret_id)
+                                await client.kick_session(customer.pppoe_username)
                         except Exception as e:
                             logger.error(f"MikroTik disconnect failed for {customer.id}: {e}")
                     else:
