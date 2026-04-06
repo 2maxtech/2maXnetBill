@@ -26,7 +26,7 @@ const { user } = useAuth()
 import { useImpersonate } from '../composables/useImpersonate'
 const { isImpersonating } = useImpersonate()
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin' && !isImpersonating.value)
-const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding'>('account')
+const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding'>(isImpersonating.value ? 'billing' : 'account')
 
 // SMTP
 const smtp = ref<SmtpSettings>({
@@ -384,6 +384,7 @@ onMounted(() => {
     <!-- Tabs -->
     <div class="flex gap-1 border-b border-gray-200">
       <button
+        v-if="!isImpersonating"
         @click="activeTab = 'account'"
         :class="[
           'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
