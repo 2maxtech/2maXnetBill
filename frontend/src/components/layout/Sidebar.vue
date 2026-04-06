@@ -82,7 +82,10 @@ function toggleMenu(label: string) {
 
 function isActive(path: string) {
   if (path === '/dashboard') return route.path === '/dashboard'
-  return route.path.startsWith(path)
+  // Exact match for child menu items to avoid siblings both highlighting
+  if (route.path === path) return true
+  // Only use startsWith if the path isn't a child of another menu item
+  return route.path.startsWith(path + '/')
 }
 
 function navigate(path: string) {
