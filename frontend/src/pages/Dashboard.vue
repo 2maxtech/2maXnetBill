@@ -207,7 +207,7 @@ function formatDate(s: string): string {
               <p class="text-xs text-amber-600 mt-0.5">{{ fmt(data.subscribers.suspended) }} suspended</p>
             </div>
             <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-4">
-              <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">MRR</p>
+              <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Expected Revenue</p>
               <p class="text-xl font-bold text-gray-900 mt-1 tabular-nums">{{ peso(data.billing.mrr) }}</p>
               <p class="text-xs text-blue-600 mt-0.5">{{ peso(data.billing.collected_this_month) }} collected</p>
             </div>
@@ -303,6 +303,22 @@ function formatDate(s: string): string {
                   </div>
                   <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-0.5">
                     <div class="h-full rounded-full transition-all duration-500" :class="memBarColor(routerStatuses.get(r.id)?.free_memory, routerStatuses.get(r.id)?.total_memory)" :style="{ width: memPercent(routerStatuses.get(r.id)?.free_memory, routerStatuses.get(r.id)?.total_memory) + '%' }" />
+                  </div>
+                </div>
+              </div>
+              <!-- Network Activity -->
+              <div v-if="routerStatuses.get(r.id)?.interfaces?.length" class="mt-3 pt-3 border-t border-gray-100">
+                <p class="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2">Network Activity</p>
+                <div class="space-y-1.5">
+                  <div v-for="iface in routerStatuses.get(r.id)?.interfaces" :key="iface.name" class="flex items-center gap-2">
+                    <div class="flex items-center gap-1 w-20 shrink-0">
+                      <span class="w-1.5 h-1.5 rounded-full" :class="iface.running ? 'bg-green-500' : 'bg-gray-300'" />
+                      <span class="text-[10px] font-mono text-gray-500 truncate">{{ iface.name }}</span>
+                    </div>
+                    <div class="flex-1 flex gap-3">
+                      <span class="text-[10px] text-green-600 tabular-nums">TX {{ formatBytes(iface.tx_bytes) }}</span>
+                      <span class="text-[10px] text-blue-600 tabular-nums">RX {{ formatBytes(iface.rx_bytes) }}</span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -124,7 +124,22 @@ async def get_router_status(
         identity = await client.get_identity()
         resources = await client.get_resources()
         sessions = await client.get_active_sessions()
-        return RouterStatusResponse(
+        # Fetch interface traffic
+        interfaces = []
+        try:
+            iface_resp = await client._request("GET", "interface")
+            for iface in iface_resp.json():
+                if iface.get("type") in ("ether", "bridge", "vlan", "pppoe-in"):
+                    interfaces.append({
+                        "name": iface.get("name", ""),
+                        "type": iface.get("type", ""),
+                        "running": iface.get("running") == "true",
+                        "tx_bytes": int(iface.get("tx-byte", 0)),
+                        "rx_bytes": int(iface.get("rx-byte", 0)),
+                    })
+        except Exception:
+            pass
+        resp = RouterStatusResponse(
             id=r.id,
             name=r.name,
             connected=True,
@@ -136,6 +151,9 @@ async def get_router_status(
             active_sessions=len(sessions),
             version=resources.get("version", ""),
         )
+        resp_dict = resp.model_dump()
+        resp_dict["interfaces"] = interfaces
+        return resp_dict
     except Exception as e:
         error_msg = str(e)
         if "timed out" in error_msg.lower() or "connection refused" in error_msg.lower():

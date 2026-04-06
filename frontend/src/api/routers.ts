@@ -24,6 +24,7 @@ export interface RouterStatus {
   active_sessions?: number
   version?: string
   error?: string
+  interfaces?: Array<{ name: string; type?: string; running: boolean; tx_bytes: number; rx_bytes: number }>
 }
 
 export interface AreaType {
