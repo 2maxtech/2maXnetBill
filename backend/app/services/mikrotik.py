@@ -208,27 +208,48 @@ class MikroTikClient:
         resp = await self._request("GET", "ppp/profile")
         return resp.json()
 
-    async def ensure_profile(self, name: str, rate_limit: str) -> str:
-        """Ensure a PPP profile exists with the given rate-limit. Returns the profile name.
-        rate_limit format: 'upload/download' e.g. '5M/10M' (MikroTik order: rx/tx from server perspective).
-        """
+    async def ensure_profile(
+        self,
+        name: str,
+        rate_limit: str,
+        local_address: str | None = None,
+        remote_address: str | None = None,
+        dns_server: str | None = None,
+        parent_queue: str | None = None,
+    ) -> str:
+        """Ensure a PPP profile exists with the given settings. Returns the profile name."""
         profiles = await self.get_profiles()
         for p in profiles:
             if p.get("name") == name:
-                # Update rate-limit if different
+                # Update fields if different
+                updates = {}
                 if p.get("rate-limit", "") != rate_limit:
-                    await self._request("PATCH", f"ppp/profile/{p['.id']}", json={"rate-limit": rate_limit})
-                    logger.info("Updated profile '%s' rate-limit to %s", name, rate_limit)
+                    updates["rate-limit"] = rate_limit
+                if local_address is not None and p.get("local-address", "") != local_address:
+                    updates["local-address"] = local_address
+                if remote_address is not None and p.get("remote-address", "") != remote_address:
+                    updates["remote-address"] = remote_address
+                if dns_server is not None and p.get("dns-server", "") != dns_server:
+                    updates["dns-server"] = dns_server
+                if parent_queue is not None and p.get("parent-queue", "") != parent_queue:
+                    updates["parent-queue"] = parent_queue
+                if updates:
+                    await self._request("PATCH", f"ppp/profile/{p['.id']}", json=updates)
+                    logger.info("Updated profile '%s': %s", name, updates)
                 return name
 
-        # Create new profile — only set name and rate-limit, let MikroTik use defaults
-        # for local/remote address to avoid pool conflicts
-        payload = {
-            "name": name,
-            "rate-limit": rate_limit,
-        }
+        # Create new profile
+        payload = {"name": name, "rate-limit": rate_limit}
+        if local_address:
+            payload["local-address"] = local_address
+        if remote_address:
+            payload["remote-address"] = remote_address
+        if dns_server:
+            payload["dns-server"] = dns_server
+        if parent_queue:
+            payload["parent-queue"] = parent_queue
         await self._request("PUT", "ppp/profile", json=payload)
-        logger.info("Created profile '%s' with rate-limit %s", name, rate_limit)
+        logger.info("Created profile '%s' with %s", name, payload)
         return name
 
     # --- Simple Queues ---

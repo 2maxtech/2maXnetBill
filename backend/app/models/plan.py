@@ -23,4 +23,8 @@ class Plan(BaseModel):
     data_cap_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fup_download_mbps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fup_upload_mbps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    local_address: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    remote_address: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    dns_server: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    parent_queue: Mapped[str | None] = mapped_column(String(100), nullable=True)
     owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

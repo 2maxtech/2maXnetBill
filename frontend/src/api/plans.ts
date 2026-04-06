@@ -11,6 +11,10 @@ export interface Plan {
   data_cap_gb: number | null
   fup_download_mbps: number | null
   fup_upload_mbps: number | null
+  local_address: string | null
+  remote_address: string | null
+  dns_server: string | null
+  parent_queue: string | null
   created_at: string
 }
 

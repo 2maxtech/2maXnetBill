@@ -21,6 +21,10 @@ const form = ref({
   data_cap_gb: '',
   fup_download_mbps: '',
   fup_upload_mbps: '',
+  local_address: '',
+  remote_address: '',
+  dns_server: '',
+  parent_queue: '',
   description: '',
   is_active: true,
 })
@@ -52,6 +56,10 @@ function openAddModal() {
     data_cap_gb: '',
     fup_download_mbps: '',
     fup_upload_mbps: '',
+    local_address: '',
+    remote_address: '',
+    dns_server: '',
+    parent_queue: '',
     description: '',
     is_active: true,
   }
@@ -68,6 +76,10 @@ function openEditModal(plan: Plan) {
     data_cap_gb: plan.data_cap_gb != null ? String(plan.data_cap_gb) : '',
     fup_download_mbps: plan.fup_download_mbps != null ? String(plan.fup_download_mbps) : '',
     fup_upload_mbps: plan.fup_upload_mbps != null ? String(plan.fup_upload_mbps) : '',
+    local_address: plan.local_address || '',
+    remote_address: plan.remote_address || '',
+    dns_server: plan.dns_server || '',
+    parent_queue: plan.parent_queue || '',
     description: plan.description || '',
     is_active: plan.is_active,
   }
@@ -88,6 +100,10 @@ async function handleSave() {
       data_cap_gb: form.value.data_cap_gb ? parseFloat(form.value.data_cap_gb) : null,
       fup_download_mbps: form.value.fup_download_mbps ? parseFloat(form.value.fup_download_mbps) : null,
       fup_upload_mbps: form.value.fup_upload_mbps ? parseFloat(form.value.fup_upload_mbps) : null,
+      local_address: form.value.local_address || null,
+      remote_address: form.value.remote_address || null,
+      dns_server: form.value.dns_server || null,
+      parent_queue: form.value.parent_queue || null,
     }
 
     if (editingPlan.value) {
@@ -297,6 +313,51 @@ onMounted(fetchPlans)
             step="1"
             min="0"
             placeholder="5"
+            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+          />
+        </div>
+
+        <!-- MikroTik Profile Settings -->
+        <div class="sm:col-span-2 border-t border-gray-100 pt-4 mt-2">
+          <h4 class="text-sm font-semibold text-gray-800 mb-3">MikroTik Profile Settings <span class="text-gray-400 font-normal">- optional</span></h4>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Local Address</label>
+          <input
+            v-model="form.local_address"
+            type="text"
+            placeholder="192.168.50.1"
+            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Remote Address (IP Pool)</label>
+          <input
+            v-model="form.remote_address"
+            type="text"
+            placeholder="pppoe-pool"
+            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">DNS Server</label>
+          <input
+            v-model="form.dns_server"
+            type="text"
+            placeholder="8.8.8.8,1.1.1.1"
+            class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Parent Queue</label>
+          <input
+            v-model="form.parent_queue"
+            type="text"
+            placeholder="none"
             class="w-full rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
           />
         </div>

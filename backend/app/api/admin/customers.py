@@ -91,7 +91,13 @@ async def create_customer(
             if plan:
                 profile_name = plan.name
                 rate_limit = f"{plan.upload_mbps}M/{plan.download_mbps}M"
-                profile = await client.ensure_profile(profile_name, rate_limit)
+                profile = await client.ensure_profile(
+                    profile_name, rate_limit,
+                    local_address=plan.local_address,
+                    remote_address=plan.remote_address,
+                    dns_server=plan.dns_server,
+                    parent_queue=plan.parent_queue,
+                )
 
             secret_id = await client.create_secret(
                 name=customer.pppoe_username,
@@ -224,7 +230,13 @@ async def reconnect_customer(
                 if customer.plan:
                     profile_name = customer.plan.name
                     rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
-                    await client.ensure_profile(profile_name, rate_limit)
+                    await client.ensure_profile(
+                        profile_name, rate_limit,
+                        local_address=customer.plan.local_address,
+                        remote_address=customer.plan.remote_address,
+                        dns_server=customer.plan.dns_server,
+                        parent_queue=customer.plan.parent_queue,
+                    )
                     await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
                 response = {"detail": "PPPoE secret enabled + plan profile restored"}
         except Exception as e:
@@ -327,7 +339,13 @@ async def change_plan(
             if client:
                 profile_name = new_plan.name
                 rate_limit = f"{new_plan.upload_mbps}M/{new_plan.download_mbps}M"
-                await client.ensure_profile(profile_name, rate_limit)
+                await client.ensure_profile(
+                    profile_name, rate_limit,
+                    local_address=new_plan.local_address,
+                    remote_address=new_plan.remote_address,
+                    dns_server=new_plan.dns_server,
+                    parent_queue=new_plan.parent_queue,
+                )
                 await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
                 mt_result = {"detail": f"Profile changed to {profile_name}"}
         except Exception as e:

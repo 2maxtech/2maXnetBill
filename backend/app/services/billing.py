@@ -215,7 +215,13 @@ async def record_payment(
                                 if customer.plan:
                                     profile_name = customer.plan.name
                                     rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
-                                    await client.ensure_profile(profile_name, rate_limit)
+                                    await client.ensure_profile(
+                                        profile_name, rate_limit,
+                                        local_address=customer.plan.local_address,
+                                        remote_address=customer.plan.remote_address,
+                                        dns_server=customer.plan.dns_server,
+                                        parent_queue=customer.plan.parent_queue,
+                                    )
                                     await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
                         except Exception as e:
                             logger.error(f"MikroTik enable failed for {customer.id}: {e}")
