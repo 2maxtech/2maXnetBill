@@ -152,18 +152,30 @@ async def update_customer(
     return customer
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{customer_id}/delete", status_code=200)
 async def delete_customer(
     customer_id: uuid.UUID,
+    body: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant_id: str = Depends(get_tenant_id),
 ):
+    """Delete a customer. Requires admin password confirmation."""
+    from app.core.security import verify_password
+
+    password = body.get("password", "")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required to confirm deletion")
+    if not verify_password(password, current_user.password_hash):
+        raise HTTPException(status_code=403, detail="Incorrect password")
+
     tid = uuid.UUID(tenant_id)
     result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
     customer = result.scalar_one_or_none()
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    username = customer.pppoe_username
 
     # Remove PPPoE secret from MikroTik
     if customer.mikrotik_secret_id:
@@ -176,7 +188,6 @@ async def delete_customer(
             logger.warning(f"MikroTik delete secret failed for {customer.id}: {e}")
 
     # Clean up related records
-    from app.models.invoice import Invoice
     await db.execute(
         Payment.__table__.delete().where(
             Payment.invoice_id.in_(select(Invoice.id).where(Invoice.customer_id == customer_id))
@@ -186,9 +197,10 @@ async def delete_customer(
     await db.execute(DisconnectLog.__table__.delete().where(DisconnectLog.customer_id == customer_id))
     await db.execute(Notification.__table__.delete().where(Notification.customer_id == customer_id))
 
-    await log_action(db, current_user.id, "customer.delete", "customer", customer.id, details=f"deleted {customer.pppoe_username}", owner_id=tid)
+    await log_action(db, current_user.id, "customer.delete", "customer", customer.id, details=f"deleted {username}", owner_id=tid)
     await db.delete(customer)
     await db.flush()
+    return {"status": "deleted", "username": username}
 
 
 @router.post("/{customer_id}/disconnect", status_code=200)

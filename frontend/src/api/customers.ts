@@ -42,8 +42,8 @@ export function updateCustomer(id: string, data: Partial<Customer>) {
   return api.put<Customer>(`/customers/${id}`, data)
 }
 
-export function deleteCustomer(id: string) {
-  return api.delete(`/customers/${id}`)
+export function deleteCustomer(id: string, password: string) {
+  return api.post(`/customers/${id}/delete`, { password })
 }
 
 export function disconnectCustomer(id: string) {
