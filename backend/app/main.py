@@ -30,6 +30,15 @@ from app.core.rate_limit import RateLimitMiddleware
 
 app = FastAPI(title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_PREFIX}/openapi.json")
 
+
+@app.on_event("startup")
+async def create_tables():
+    """Auto-create database tables on startup if they don't exist."""
+    from app.core.database import engine
+    from app.models.base import Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 # Build allowed origins based on deployment mode
 _allowed_origins = ["https://netl.2max.tech", "http://localhost", "http://localhost:5173"]
 if settings.DEPLOYMENT_MODE == "onpremise":
