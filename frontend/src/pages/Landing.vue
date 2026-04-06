@@ -24,9 +24,6 @@ onMounted(() => {
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <router-link to="/portal/login" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-            Customer Portal
-          </router-link>
           <router-link to="/register" class="px-5 py-2 text-sm font-medium text-primary border border-primary hover:bg-primary/5 rounded-lg transition-colors">
             Register
           </router-link>
