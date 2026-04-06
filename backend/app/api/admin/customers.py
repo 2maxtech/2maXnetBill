@@ -89,7 +89,7 @@ async def create_customer(
             plan = customer.plan
             profile = "default"
             if plan:
-                profile_name = f"{plan.download_mbps}M-{plan.upload_mbps}M"
+                profile_name = plan.name
                 rate_limit = f"{plan.upload_mbps}M/{plan.download_mbps}M"
                 profile = await client.ensure_profile(profile_name, rate_limit)
 
@@ -222,7 +222,7 @@ async def reconnect_customer(
             if client:
                 await client.enable_secret(customer.mikrotik_secret_id)
                 if customer.plan:
-                    profile_name = f"{customer.plan.download_mbps}M-{customer.plan.upload_mbps}M"
+                    profile_name = customer.plan.name
                     rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
                     await client.ensure_profile(profile_name, rate_limit)
                     await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
@@ -325,7 +325,7 @@ async def change_plan(
         try:
             client, _ = await get_client_for_customer(db, customer)
             if client:
-                profile_name = f"{new_plan.download_mbps}M-{new_plan.upload_mbps}M"
+                profile_name = new_plan.name
                 rate_limit = f"{new_plan.upload_mbps}M/{new_plan.download_mbps}M"
                 await client.ensure_profile(profile_name, rate_limit)
                 await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})

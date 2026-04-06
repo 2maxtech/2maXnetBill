@@ -213,7 +213,7 @@ async def record_payment(
                             if client:
                                 await client.enable_secret(customer.mikrotik_secret_id)
                                 if customer.plan:
-                                    profile_name = f"{customer.plan.download_mbps}M-{customer.plan.upload_mbps}M"
+                                    profile_name = customer.plan.name
                                     rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
                                     await client.ensure_profile(profile_name, rate_limit)
                                     await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
