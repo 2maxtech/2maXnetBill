@@ -26,7 +26,7 @@ const { user } = useAuth()
 import { useImpersonate } from '../composables/useImpersonate'
 const { isImpersonating } = useImpersonate()
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin' && !isImpersonating.value)
-const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding'>(isImpersonating.value ? 'billing' : 'account')
+const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding' | 'libreqos'>(isImpersonating.value ? 'billing' : 'account')
 
 // SMTP
 const smtp = ref<SmtpSettings>({
@@ -99,6 +99,13 @@ const billingLoading = ref(false)
 const billingSaving = ref(false)
 const billingMsg = ref('')
 const billingMsgType = ref<'success' | 'error'>('success')
+
+// LibreQoS
+const libreqosToken = ref<string | null>(null)
+const libreqosLoading = ref(false)
+const libreqosGenerating = ref(false)
+const libreqosCopied = ref(false)
+const libreqosUrl = computed(() => libreqosToken.value ? `${window.location.origin}/api/v1/libreqos/shaped-devices.csv?token=${libreqosToken.value}` : '')
 
 // Account
 const account = ref({
@@ -368,12 +375,43 @@ async function handleSaveBilling() {
   }
 }
 
+async function loadLibreqos() {
+  libreqosLoading.value = true
+  try {
+    const { data } = await import('../api/client').then(m => m.default.get('/settings/libreqos'))
+    libreqosToken.value = data.token
+  } catch (e) {
+    console.error('Failed to load LibreQoS settings', e)
+  } finally {
+    libreqosLoading.value = false
+  }
+}
+
+async function generateLibreqosToken() {
+  libreqosGenerating.value = true
+  try {
+    const { data } = await import('../api/client').then(m => m.default.post('/settings/libreqos/token'))
+    libreqosToken.value = data.token
+  } catch (e) {
+    console.error('Failed to generate token', e)
+  } finally {
+    libreqosGenerating.value = false
+  }
+}
+
+function copyLibreqosUrl() {
+  navigator.clipboard.writeText(libreqosUrl.value)
+  libreqosCopied.value = true
+  setTimeout(() => { libreqosCopied.value = false }, 2000)
+}
+
 onMounted(() => {
   loadAccount()
   loadBilling()
   loadSmtp()
   loadSms()
   loadBranding()
+  loadLibreqos()
 })
 </script>
 
@@ -441,6 +479,18 @@ onMounted(() => {
         ]"
       >
         Branding
+      </button>
+      <button
+        v-if="!isSuperAdmin"
+        @click="activeTab = 'libreqos'"
+        :class="[
+          'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+          activeTab === 'libreqos'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ]"
+      >
+        LibreQoS
       </button>
     </div>
 
@@ -997,6 +1047,80 @@ onMounted(() => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- LibreQoS Tab -->
+    <div v-if="activeTab === 'libreqos'" class="space-y-6">
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">LibreQoS Integration</h2>
+        <p class="text-sm text-gray-500 mb-6">Connect NetLedger to your LibreQoS traffic shaper. NetLedger provides a CSV endpoint that LibreQoS pulls on a schedule to sync subscriber speed limits.</p>
+
+        <div v-if="libreqosLoading" class="space-y-4">
+          <div class="h-4 w-48 bg-gray-100 rounded animate-pulse" />
+          <div class="h-10 w-full bg-gray-100 rounded animate-pulse" />
+        </div>
+
+        <div v-else class="space-y-5">
+          <!-- Token -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">API Token</label>
+            <div class="flex gap-2">
+              <input
+                :value="libreqosToken || 'No token generated yet'"
+                type="text"
+                readonly
+                class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-mono bg-gray-50 text-gray-600"
+              />
+              <button
+                @click="generateLibreqosToken"
+                :disabled="libreqosGenerating"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {{ libreqosGenerating ? 'Generating...' : libreqosToken ? 'Regenerate' : 'Generate Token' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- URL -->
+          <div v-if="libreqosToken">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">ShapedDevices.csv URL</label>
+            <div class="flex gap-2">
+              <input
+                :value="libreqosUrl"
+                type="text"
+                readonly
+                class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-mono bg-gray-50 text-gray-600"
+              />
+              <button
+                @click="copyLibreqosUrl"
+                class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap"
+                :class="libreqosCopied ? 'text-green-700 bg-green-50 border-green-300' : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'"
+              >
+                {{ libreqosCopied ? 'Copied!' : 'Copy URL' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Setup Instructions -->
+          <div v-if="libreqosToken" class="border-t border-gray-100 pt-5 mt-5">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">Setup on your LibreQoS server</h3>
+            <p class="text-sm text-gray-500 mb-3">Add this cron job to your LibreQoS server to pull subscriber data every 5 minutes:</p>
+            <div class="rounded-lg bg-gray-900 p-4 overflow-x-auto">
+              <code class="text-sm font-mono text-green-400">*/5 * * * * curl -s "{{ libreqosUrl }}" > /opt/libreqos/src/ShapedDevices.csv && cd /opt/libreqos/src && sudo ./LibreQoS.py</code>
+            </div>
+            <div class="mt-4 space-y-2 text-sm text-gray-500">
+              <p><strong class="text-gray-700">How it works:</strong></p>
+              <ul class="list-disc list-inside space-y-1 ml-2">
+                <li>NetLedger queries your MikroTik for active PPPoE sessions (gets customer IPs)</li>
+                <li>Generates a CSV mapping each online customer to their plan speeds</li>
+                <li>LibreQoS reads the CSV and applies per-subscriber fair queueing</li>
+                <li>Offline customers are excluded (no IP = no shaping needed)</li>
+                <li>Min speed is set to 30% of max for fair bandwidth distribution</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
