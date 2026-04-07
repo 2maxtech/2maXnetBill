@@ -14,6 +14,7 @@ from app.models.plan import Plan  # noqa: F401
 from app.models.pppoe_session import PPPoESession  # noqa: F401
 from app.models.session_traffic import SessionTraffic  # noqa: F401
 from app.models.router import Area, Router  # noqa: F401
+from app.models.support_ticket import SupportTicket  # noqa: F401
 from app.models.ticket import Ticket, TicketMessage  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.voucher import Voucher  # noqa: F401

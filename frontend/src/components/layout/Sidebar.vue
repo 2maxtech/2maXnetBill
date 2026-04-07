@@ -83,6 +83,7 @@ const ispMenu: MenuItem[] = [
 const superAdminMenu: MenuItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { path: '/system/organizations', label: 'Organizations', icon: 'users' },
+  { path: '/system/support', label: 'Support Inbox', icon: 'ticket' },
   { path: '/system/status', label: 'System Status', icon: 'server' },
   { path: '/settings', label: 'Settings', icon: 'settings' },
 ]

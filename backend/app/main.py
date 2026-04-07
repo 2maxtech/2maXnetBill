@@ -23,6 +23,7 @@ from app.api.admin.audit import router as audit_router
 from app.api.admin.vpn import router as vpn_router
 from app.api.admin.libreqos import router as libreqos_router
 from app.api.admin.onboarding import router as onboarding_router
+from app.api.admin.support import router as support_router
 from app.api.admin.system import router as system_router
 from app.api.setup import router as setup_router
 from app.api.payment import router as payment_router
@@ -83,6 +84,7 @@ if settings.DEPLOYMENT_MODE != "onpremise":
 app.include_router(libreqos_router, prefix=settings.API_V1_PREFIX)
 app.include_router(setup_router, prefix=settings.API_V1_PREFIX)
 app.include_router(onboarding_router, prefix=settings.API_V1_PREFIX)
+app.include_router(support_router, prefix=settings.API_V1_PREFIX)
 app.include_router(system_router, prefix=settings.API_V1_PREFIX)
 app.include_router(payment_router, prefix=settings.API_V1_PREFIX)
 app.include_router(chat_router, prefix=settings.API_V1_PREFIX)

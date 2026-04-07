@@ -1,17 +1,23 @@
+import asyncio
 import base64
+import json
 import logging
 import os
+import smtplib
 import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import async_session, get_db
 from app.core.security import decode_token
-from app.models.user import User
+from app.models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +140,112 @@ def _load_image_base64(filename: str) -> tuple[str, str] | None:
 
 
 # ---------------------------------------------------------------------------
+# Bug / feature-request auto-detection (fire-and-forget after main reply)
+# ---------------------------------------------------------------------------
+
+async def _classify_and_save(
+    message: str,
+    history: list[dict],
+    reply: str,
+    images: list[str],
+    user_id: uuid.UUID,
+    owner_id: uuid.UUID,
+    tenant_name: str | None,
+    tenant_email: str | None,
+) -> None:
+    """Classify the user message and, if it's a bug or feature request, persist a SupportTicket and notify the super admin."""
+    try:
+        client = _get_client()
+        classify_response = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=20,
+            temperature=0,
+            system="Classify the user's message. Reply with ONLY one word: bug, feature_request, or question. If unsure, reply question.",
+            messages=[{"role": "user", "content": message}],
+        )
+        classification = classify_response.content[0].text.strip().lower()
+
+        if classification not in ("bug", "feature_request"):
+            return
+
+        from app.models.support_ticket import SupportTicket
+
+        async with async_session() as db:
+            ticket = SupportTicket(
+                subject=message[:500],
+                description=message,
+                category=classification,
+                tenant_name=tenant_name,
+                tenant_email=tenant_email,
+                chat_history=json.dumps(
+                    history
+                    + [
+                        {"role": "user", "content": message},
+                        {"role": "assistant", "content": reply},
+                    ]
+                ),
+                image_urls=",".join(images) if images else None,
+                owner_id=owner_id,
+            )
+            db.add(ticket)
+            await db.flush()
+
+            # Email super admin
+            await _notify_super_admin(db, ticket)
+            await db.commit()
+
+        logger.info("Support ticket saved (%s) from %s", classification, tenant_email)
+    except Exception as e:
+        logger.warning("Bug classification/save failed: %s", e)
+
+
+async def _notify_super_admin(db: AsyncSession, ticket) -> None:
+    """Send email notification to super admin about a new support ticket."""
+    try:
+        result = await db.execute(
+            select(User).where(User.role == UserRole.super_admin).limit(1)
+        )
+        admin = result.scalar_one_or_none()
+        if not admin or not admin.email:
+            return
+
+        subject = f"[NetLedger] New {ticket.category}: {ticket.subject[:100]}"
+        body = f"""New support ticket from {ticket.tenant_name} ({ticket.tenant_email}):
+
+Category: {ticket.category}
+Message: {ticket.description}
+
+Tenant: {ticket.tenant_name}
+Email: {ticket.tenant_email}
+
+View in admin panel: {settings.BASE_URL}/system/support
+"""
+        smtp_host = settings.SMTP_HOST or "mail.2max.tech"
+        smtp_port = settings.SMTP_PORT or 587
+        smtp_user = settings.SMTP_USER or "noreply@2max.tech"
+        smtp_password = settings.SMTP_PASSWORD
+
+        if smtp_host and smtp_user:
+            msg = MIMEMultipart()
+            msg["From"] = f"NetLedger Support <{smtp_user}>"
+            msg["To"] = admin.email
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.ehlo()
+                if smtp_port != 465:
+                    server.starttls()
+                if smtp_password:
+                    server.login(smtp_user, smtp_password)
+                server.sendmail(smtp_user, [admin.email], msg.as_string())
+
+            logger.info("Super admin notified about support ticket: %s", ticket.subject[:60])
+    except Exception as e:
+        logger.warning("Failed to notify super admin: %s", e)
+
+
+# ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
 
@@ -230,6 +342,21 @@ async def chat(body: ChatRequest, request: Request, db: AsyncSession = Depends(g
     except Exception as e:
         logger.error("Unexpected error calling Claude: %s", e)
         raise HTTPException(status_code=502, detail="AI service temporarily unavailable")
+
+    # Fire-and-forget: classify message and save support ticket if it's a bug/feature request
+    if user is not None:
+        asyncio.create_task(
+            _classify_and_save(
+                message=body.message,
+                history=body.history,
+                reply=reply,
+                images=body.images,
+                user_id=user.id,
+                owner_id=user.owner_id or user.id,
+                tenant_name=user.company_name or user.full_name,
+                tenant_email=user.email,
+            )
+        )
 
     return ChatResponse(response=reply)
 

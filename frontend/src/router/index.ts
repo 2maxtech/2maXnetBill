@@ -95,6 +95,7 @@ const router = createRouter({
         { path: '/system/status', component: () => import('../pages/system/SystemStatus.vue') },
         { path: '/system/logs', component: () => import('../pages/system/Logs.vue') },
         { path: '/system/organizations', component: () => import('../pages/system/Organizations.vue') },
+        { path: '/system/support', component: () => import('../pages/system/Support.vue') },
       ],
     },
   ],
