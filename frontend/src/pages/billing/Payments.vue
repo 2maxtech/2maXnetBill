@@ -111,7 +111,7 @@ async function exportCsv() {
   const params = new URLSearchParams({ format: 'csv' })
   if (filterFromDate.value) params.set('from_date', filterFromDate.value)
   if (filterToDate.value) params.set('to_date', filterToDate.value)
-  const response = await fetch(`/api/v1/billing/payments/?${params}`, {
+  const response = await fetch(`/api/v1/billing/payments?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const blob = await response.blob()

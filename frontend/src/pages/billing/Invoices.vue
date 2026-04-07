@@ -276,7 +276,7 @@ async function exportCsv() {
   if (filterStatus.value) params.set('status', filterStatus.value)
   if (filterFromDate.value) params.set('from_date', filterFromDate.value)
   if (filterToDate.value) params.set('to_date', filterToDate.value)
-  const response = await fetch(`/api/v1/billing/invoices/?${params}`, {
+  const response = await fetch(`/api/v1/billing/invoices?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const blob = await response.blob()

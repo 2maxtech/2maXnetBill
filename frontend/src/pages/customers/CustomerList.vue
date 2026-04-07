@@ -364,7 +364,7 @@ async function exportCsv() {
   const params = new URLSearchParams({ format: 'csv' })
   if (search.value) params.set('search', search.value)
   if (statusFilter.value) params.set('status', statusFilter.value)
-  const response = await fetch(`/api/v1/customers/?${params}`, {
+  const response = await fetch(`/api/v1/customers?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const blob = await response.blob()
