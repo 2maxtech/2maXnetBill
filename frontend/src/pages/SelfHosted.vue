@@ -94,6 +94,11 @@ function copyUpdate() {
                 <td class="px-5 py-3 text-primary font-medium">Ubuntu 24.04</td>
               </tr>
               <tr class="hover:bg-gray-900/50 transition-colors">
+                <td class="px-5 py-3 font-medium text-gray-300">Architecture</td>
+                <td class="px-5 py-3 text-gray-400">x86_64 (AMD/Intel) or ARM64</td>
+                <td class="px-5 py-3 text-primary font-medium">Raspberry Pi 4/5 supported</td>
+              </tr>
+              <tr class="hover:bg-gray-900/50 transition-colors">
                 <td class="px-5 py-3 font-medium text-gray-300">Network</td>
                 <td class="px-5 py-3 text-gray-400">LAN access to MikroTik router</td>
                 <td class="px-5 py-3 text-gray-500">--</td>
