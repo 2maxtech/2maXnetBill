@@ -26,6 +26,10 @@ const router = createRouter({
       component: () => import('../pages/SelfHosted.vue'),
     },
     {
+      path: '/pay/:token',
+      component: () => import('../pages/Pay.vue'),
+    },
+    {
       path: '/setup',
       component: () => import('../pages/Setup.vue'),
     },
@@ -98,9 +102,10 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const publicPaths = ['/', '/login', '/register', '/self-hosted', '/setup', '/setup-guide']
+  const isPaymentPage = to.path.startsWith('/pay/')
   const isPortal = to.path.startsWith('/portal')
   const isPortalLogin = to.matched.some(r => r.path === '/portal/:slug/login') || (isOnPremise && to.path === '/portal/login')
-  if (publicPaths.includes(to.path) || isPortalLogin) {
+  if (publicPaths.includes(to.path) || isPaymentPage || isPortalLogin) {
     // On-premise: redirect to setup if unconfigured
     if (isOnPremise && to.path !== '/setup' && !localStorage.getItem('setup_done')) {
       try {

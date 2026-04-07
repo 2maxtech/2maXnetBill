@@ -200,6 +200,7 @@ async def bulk_send_invoice_notification(
     """Send invoice notifications (email/SMS) for multiple invoices."""
     from app.api.admin.settings import get_template_settings
     from app.services.template_renderer import render_template
+    from app.services.billing import _build_payment_url
 
     tid = uuid.UUID(tenant_id)
     success = 0
@@ -226,6 +227,7 @@ async def bulk_send_invoice_notification(
                 continue
 
             plan = invoice.plan
+            payment_url = await _build_payment_url(db, invoice, tid)
             tpl_vars = {
                 "customer_name": customer.full_name,
                 "amount": f"\u20b1{invoice.amount:,.2f}",
@@ -233,6 +235,7 @@ async def bulk_send_invoice_notification(
                 "due_date": invoice.due_date.strftime("%B %d, %Y") if hasattr(invoice.due_date, "strftime") else str(invoice.due_date),
                 "due_date_short": invoice.due_date.strftime("%b %d") if hasattr(invoice.due_date, "strftime") else str(invoice.due_date),
                 "portal_url": "",
+                "payment_url": payment_url,
             }
 
             # SMS notification

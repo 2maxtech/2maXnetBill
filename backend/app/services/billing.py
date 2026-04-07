@@ -13,10 +13,20 @@ from app.models.invoice import Invoice, InvoiceStatus
 from app.models.app_setting import AppSetting
 from app.models.notification import Notification, NotificationStatus, NotificationType
 from app.models.payment import Payment
-from app.api.admin.settings import get_template_settings
+from app.api.admin.settings import get_template_settings, get_payment_settings
 from app.services.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
+
+
+async def _build_payment_url(db: AsyncSession, invoice: "Invoice", tenant_id) -> str:
+    """Build a payment URL for an invoice if PayMongo is configured for the tenant."""
+    if not invoice.payment_token:
+        return ""
+    pay_settings = await get_payment_settings(db, tenant_id=tenant_id)
+    if not pay_settings.get("paymongo_secret_key"):
+        return ""
+    return f"{settings.BASE_URL}/pay/{invoice.payment_token}"
 
 
 async def generate_invoice(db: AsyncSession, customer: Customer, billing_period: date, owner_id: uuid_mod.UUID | None = None) -> Invoice:
@@ -80,6 +90,9 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
                 portal_line = f"\nView your account: {portal_url}\n"
                 portal_sms = f" View account: {portal_url}"
 
+            # Build payment URL if PayMongo is configured
+            payment_url = await _build_payment_url(db, invoice, oid)
+
             # Load notification templates
             templates = await get_template_settings(db, tenant_id=oid)
             tpl_vars = {
@@ -89,6 +102,7 @@ async def generate_invoice(db: AsyncSession, customer: Customer, billing_period:
                 "due_date": due_date.strftime("%B %d, %Y"),
                 "due_date_short": due_date.strftime("%b %d"),
                 "portal_url": portal_line.strip() if portal_line else "",
+                "payment_url": payment_url,
             }
 
             # Email notification
@@ -408,6 +422,9 @@ async def send_billing_reminders(db: AsyncSession) -> int:
 
     for inv in invoices:
         customer = inv.customer
+        # Build payment URL if PayMongo is configured
+        payment_url = await _build_payment_url(db, inv, customer.owner_id)
+
         # Load templates for this customer's tenant
         templates = await get_template_settings(db, tenant_id=customer.owner_id)
         tpl_vars = {
@@ -416,6 +433,7 @@ async def send_billing_reminders(db: AsyncSession) -> int:
             "due_date": str(inv.due_date),
             "due_date_short": inv.due_date.strftime("%b %d") if hasattr(inv.due_date, 'strftime') else str(inv.due_date),
             "portal_url": "",
+            "payment_url": payment_url,
         }
         notification = Notification(
             customer_id=customer.id,

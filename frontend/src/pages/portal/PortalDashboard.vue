@@ -123,16 +123,26 @@ onMounted(fetchDashboard)
                 <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Amount</th>
                 <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">Due Date</th>
                 <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">Status</th>
+                <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
               <tr v-if="!dashboard.recent_invoices?.length">
-                <td colspan="3" class="px-4 py-8 text-center text-gray-400">No invoices yet</td>
+                <td colspan="4" class="px-4 py-8 text-center text-gray-400">No invoices yet</td>
               </tr>
               <tr v-else v-for="inv in dashboard.recent_invoices" :key="inv.id" class="hover:bg-gray-50/50 transition-colors">
                 <td class="px-4 py-3 text-sm text-gray-700 text-right font-medium">{{ formatCurrency(inv.amount) }}</td>
                 <td class="px-4 py-3 text-sm text-gray-700">{{ dayjs(inv.due_date).format('MMM D, YYYY') }}</td>
                 <td class="px-4 py-3"><StatusBadge :status="inv.status" /></td>
+                <td class="px-4 py-3 text-right">
+                  <a
+                    v-if="inv.payment_token && inv.status !== 'paid'"
+                    :href="`/pay/${inv.payment_token}`"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors"
+                  >
+                    Pay Now
+                  </a>
+                </td>
               </tr>
             </tbody>
           </table>

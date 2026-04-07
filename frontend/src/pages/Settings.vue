@@ -19,6 +19,9 @@ import {
   saveNotificationTemplates,
   getHotspotBranding,
   saveHotspotBranding,
+  getPaymentSettings,
+  savePaymentSettings,
+  testPaymentConnection,
   type SmtpSettings,
   type SmsSettings,
   type BrandingSettings,
@@ -26,13 +29,14 @@ import {
   type ProfileUpdate,
   type NotificationTemplates,
   type HotspotBranding,
+  type PaymentSettings,
 } from '../api/settings'
 
 const { user } = useAuth()
 import { useImpersonate } from '../composables/useImpersonate'
 const { isImpersonating } = useImpersonate()
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin' && !isImpersonating.value)
-const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding' | 'notifications' | 'hotspot' | 'libreqos'>(isImpersonating.value ? 'billing' : 'account')
+const activeTab = ref<'account' | 'billing' | 'payments' | 'smtp' | 'sms' | 'branding' | 'notifications' | 'hotspot' | 'libreqos'>(isImpersonating.value ? 'billing' : 'account')
 
 // SMTP
 const smtp = ref<SmtpSettings>({
@@ -140,6 +144,25 @@ const hotspotLoading = ref(false)
 const hotspotSaving = ref(false)
 const hotspotMsg = ref('')
 const hotspotMsgType = ref<'success' | 'error'>('success')
+
+// Payments (PayMongo)
+const payments = ref<PaymentSettings>({
+  paymongo_secret_key: '',
+  paymongo_public_key: '',
+  paymongo_webhook_secret: '',
+  paymongo_fee_mode: 'pass_to_customer',
+  paymongo_fee_percent: '2.5',
+  paymongo_fee_flat: '15',
+})
+const paymentsLoading = ref(false)
+const paymentsSaving = ref(false)
+const paymentsMsg = ref('')
+const paymentsMsgType = ref<'success' | 'error'>('success')
+const paymentsTesting = ref(false)
+const paymentsTestMsg = ref('')
+const paymentsTestMsgType = ref<'success' | 'error'>('success')
+const webhookUrlCopied = ref(false)
+const webhookUrl = computed(() => `${window.location.origin}/api/v1/webhooks/paymongo`)
 
 // Account
 const account = ref({
@@ -439,6 +462,56 @@ function copyLibreqosUrl() {
   setTimeout(() => { libreqosCopied.value = false }, 2000)
 }
 
+async function loadPayments() {
+  paymentsLoading.value = true
+  try {
+    const { data } = await getPaymentSettings()
+    payments.value = { ...payments.value, ...data }
+  } catch {
+    paymentsMsg.value = 'Failed to load payment settings'
+    paymentsMsgType.value = 'error'
+  } finally {
+    paymentsLoading.value = false
+  }
+}
+
+async function handleSavePayments() {
+  paymentsSaving.value = true
+  paymentsMsg.value = ''
+  try {
+    await savePaymentSettings(payments.value as unknown as Record<string, string>)
+    paymentsMsg.value = 'Payment settings saved successfully'
+    paymentsMsgType.value = 'success'
+  } catch (e: any) {
+    paymentsMsg.value = e.response?.data?.detail || 'Failed to save payment settings'
+    paymentsMsgType.value = 'error'
+  } finally {
+    paymentsSaving.value = false
+  }
+}
+
+async function handleTestPayments() {
+  if (!payments.value.paymongo_secret_key) return
+  paymentsTesting.value = true
+  paymentsTestMsg.value = ''
+  try {
+    await testPaymentConnection({ secret_key: payments.value.paymongo_secret_key })
+    paymentsTestMsg.value = 'Connection successful! PayMongo API key is valid.'
+    paymentsTestMsgType.value = 'success'
+  } catch (e: any) {
+    paymentsTestMsg.value = e.response?.data?.detail || 'Connection failed. Check your secret key.'
+    paymentsTestMsgType.value = 'error'
+  } finally {
+    paymentsTesting.value = false
+  }
+}
+
+function copyWebhookUrl() {
+  navigator.clipboard.writeText(webhookUrl.value)
+  webhookUrlCopied.value = true
+  setTimeout(() => { webhookUrlCopied.value = false }, 2000)
+}
+
 async function loadHotspot() {
   hotspotLoading.value = true
   try {
@@ -498,6 +571,7 @@ async function handleSaveTemplates() {
 onMounted(() => {
   loadAccount()
   loadBilling()
+  loadPayments()
   loadSmtp()
   loadSms()
   loadBranding()
@@ -536,6 +610,18 @@ onMounted(() => {
         ]"
       >
         Billing
+      </button>
+      <button
+        v-if="!isSuperAdmin"
+        @click="activeTab = 'payments'"
+        :class="[
+          'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+          activeTab === 'payments'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ]"
+      >
+        Payments
       </button>
       <button
         @click="activeTab = 'smtp'"
@@ -812,6 +898,176 @@ onMounted(() => {
           class="px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
         >
           {{ billingSaving ? 'Saving...' : 'Save Billing Settings' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Payments Tab -->
+    <div v-if="activeTab === 'payments'" class="space-y-6">
+      <!-- PayMongo Configuration -->
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">PayMongo Configuration</h2>
+        <p class="text-sm text-gray-500 mb-4">Accept GCash, Maya, and card payments. Sign up at <a href="https://paymongo.com" target="_blank" class="text-primary hover:underline">paymongo.com</a> to get your API keys.</p>
+
+        <div
+          v-if="paymentsMsg"
+          :class="[
+            'mb-4 rounded-lg px-4 py-3 text-sm border',
+            paymentsMsgType === 'success'
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : 'bg-red-50 border-red-200 text-red-700'
+          ]"
+        >
+          {{ paymentsMsg }}
+        </div>
+
+        <div v-if="paymentsLoading" class="space-y-4">
+          <div v-for="i in 4" :key="i" class="h-10 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
+
+        <div v-else class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Secret Key</label>
+            <input
+              v-model="payments.paymongo_secret_key"
+              type="password"
+              placeholder="sk_live_..."
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Public Key</label>
+            <input
+              v-model="payments.paymongo_public_key"
+              type="text"
+              placeholder="pk_live_..."
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Webhook Signing Secret</label>
+            <input
+              v-model="payments.paymongo_webhook_secret"
+              type="password"
+              placeholder="whsk_..."
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+
+          <!-- Webhook URL -->
+          <div class="rounded-lg bg-blue-50 border border-blue-200 p-4">
+            <label class="block text-sm font-medium text-blue-800 mb-1.5">Webhook URL</label>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 px-3 py-2 bg-white rounded-lg border border-blue-200 text-sm font-mono text-blue-700 select-all truncate">{{ webhookUrl }}</code>
+              <button
+                type="button"
+                @click="copyWebhookUrl"
+                class="px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                :class="webhookUrlCopied ? 'text-green-700 bg-green-100 border border-green-300' : 'text-blue-700 bg-blue-100 hover:bg-blue-200 border border-blue-200'"
+              >
+                {{ webhookUrlCopied ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <p class="mt-1.5 text-xs text-blue-600">Add this URL in your PayMongo dashboard under Webhooks. Select events: <code class="bg-blue-100 px-1 rounded">checkout_session.payment.paid</code></p>
+          </div>
+
+          <!-- Test Connection -->
+          <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-4">
+            <div
+              v-if="paymentsTestMsg"
+              :class="[
+                'mb-3 rounded-lg px-4 py-3 text-sm border',
+                paymentsTestMsgType === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-700'
+              ]"
+            >
+              {{ paymentsTestMsg }}
+            </div>
+            <button
+              @click="handleTestPayments"
+              :disabled="paymentsTesting || !payments.paymongo_secret_key"
+              class="px-4 py-2 text-sm font-medium text-primary bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50"
+            >
+              {{ paymentsTesting ? 'Testing...' : 'Test Connection' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Convenience Fee -->
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Convenience Fee</h2>
+        <p class="text-sm text-gray-500 mb-4">Configure how PayMongo processing fees are handled.</p>
+
+        <div class="space-y-4">
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                v-model="payments.paymongo_fee_mode"
+                value="pass_to_customer"
+                class="h-4 w-4 border-gray-300 text-primary focus:ring-primary/30"
+              />
+              <div>
+                <span class="text-sm font-medium text-gray-700">Customer pays convenience fee</span>
+                <p class="text-xs text-gray-500">Fee is added on top of the invoice amount at checkout</p>
+              </div>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                v-model="payments.paymongo_fee_mode"
+                value="absorb"
+                class="h-4 w-4 border-gray-300 text-primary focus:ring-primary/30"
+              />
+              <div>
+                <span class="text-sm font-medium text-gray-700">We absorb the fee</span>
+                <p class="text-xs text-gray-500">Customer pays exactly the invoice amount, you cover the processing fee</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Fee Percentage (%)</label>
+              <input
+                v-model="payments.paymongo_fee_percent"
+                type="number"
+                step="0.1"
+                min="0"
+                max="10"
+                placeholder="2.5"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+              <p class="text-xs text-gray-400 mt-1">PayMongo charges ~2.5% for GCash/Maya</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Flat Fee</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-sm text-gray-500 pointer-events-none">&#8369;</span>
+                <input
+                  v-model="payments.paymongo_fee_flat"
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="15"
+                  class="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                />
+              </div>
+              <p class="text-xs text-gray-400 mt-1">Fixed fee per transaction (e.g. &#8369;15)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button
+          @click="handleSavePayments"
+          :disabled="paymentsSaving"
+          class="px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+        >
+          {{ paymentsSaving ? 'Saving...' : 'Save Payment Settings' }}
         </button>
       </div>
     </div>
@@ -1176,7 +1432,7 @@ onMounted(() => {
         <div class="mb-6 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
           <p class="text-xs font-medium text-gray-600 mb-2">Available Variables:</p>
           <div class="flex flex-wrap gap-2">
-            <code v-for="v in ['{customer_name}', '{amount}', '{plan_name}', '{due_date}', '{due_date_short}', '{portal_url}']" :key="v" class="bg-white border border-gray-200 px-2 py-1 rounded text-xs font-mono text-gray-700">{{ v }}</code>
+            <code v-for="v in ['{customer_name}', '{amount}', '{plan_name}', '{due_date}', '{due_date_short}', '{portal_url}', '{payment_url}']" :key="v" class="bg-white border border-gray-200 px-2 py-1 rounded text-xs font-mono text-gray-700">{{ v }}</code>
           </div>
         </div>
 

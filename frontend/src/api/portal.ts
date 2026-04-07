@@ -14,7 +14,7 @@ export interface PortalDashboard {
   plan: { name: string; download_mbps: number; upload_mbps: number; monthly_price: number }
   outstanding_balance: number
   session: { address: string; uptime: string; bytes_in: number; bytes_out: number } | null
-  recent_invoices: Array<{ id: string; amount: number; due_date: string; status: string }>
+  recent_invoices: Array<{ id: string; amount: number; due_date: string; status: string; payment_token?: string }>
 }
 
 export interface PortalInvoice {
@@ -26,6 +26,7 @@ export interface PortalInvoice {
   issued_at: string
   paid_at: string | null
   plan_name: string
+  payment_token?: string
 }
 
 export function resolveTenantSlug(slug: string) {

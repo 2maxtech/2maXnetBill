@@ -249,12 +249,12 @@ TEMPLATE_KEYS = [
 
 TEMPLATE_DEFAULTS = {
     "tpl_invoice_email_subject": "Invoice - {amount} due {due_date_short}",
-    "tpl_invoice_email_body": "Hi {customer_name},\n\nYour invoice of {amount} for plan {plan_name} has been generated.\nDue date: {due_date}\n\nPlease pay before the due date to avoid service interruption.\n{portal_url}\n\nThank you!",
-    "tpl_invoice_sms": "Hi {customer_name}, your bill of {amount} is due on {due_date_short}. Please pay on time to avoid disconnection. {portal_url}",
-    "tpl_reminder_sms": "Hi {customer_name}, your bill of {amount} is due on {due_date}. Please pay before the due date to avoid service interruption.",
+    "tpl_invoice_email_body": "Hi {customer_name},\n\nYour invoice of {amount} for plan {plan_name} has been generated.\nDue date: {due_date}\n\nPlease pay before the due date to avoid service interruption.\n{portal_url}\nPay online: {payment_url}\n\nThank you!",
+    "tpl_invoice_sms": "Hi {customer_name}, your bill of {amount} is due on {due_date_short}. Please pay on time to avoid disconnection. Pay online: {payment_url}",
+    "tpl_reminder_sms": "Hi {customer_name}, your bill of {amount} is due on {due_date}. Please pay before the due date to avoid service interruption. Pay now: {payment_url}",
     "tpl_overdue_email_subject": "Overdue Notice - {amount}",
-    "tpl_overdue_email_body": "Hi {customer_name},\n\nYour invoice of {amount} is now overdue. Please settle your balance immediately to avoid service interruption.\n{portal_url}\n\nThank you!",
-    "tpl_overdue_sms": "Hi {customer_name}, your bill of {amount} is overdue. Please pay immediately to avoid disconnection. {portal_url}",
+    "tpl_overdue_email_body": "Hi {customer_name},\n\nYour invoice of {amount} is now overdue. Please settle your balance immediately to avoid service interruption.\n{portal_url}\nPay now: {payment_url}\n\nThank you!",
+    "tpl_overdue_sms": "Hi {customer_name}, your bill of {amount} is overdue. Please pay immediately to avoid disconnection. Pay now: {payment_url}",
 }
 
 
@@ -422,6 +422,81 @@ async def update_hotspot_branding(
         await save_setting(db, key, str(value), tenant_id=tid)
     await db.flush()
     return {"status": "saved", "keys_updated": list(allowed.keys())}
+
+
+# --- Payment Gateway (PayMongo) Settings ---
+
+PAYMENT_KEYS = [
+    "paymongo_secret_key", "paymongo_public_key", "paymongo_webhook_secret",
+    "paymongo_fee_mode", "paymongo_fee_percent", "paymongo_fee_flat",
+]
+PAYMENT_DEFAULTS = {
+    "paymongo_secret_key": "", "paymongo_public_key": "", "paymongo_webhook_secret": "",
+    "paymongo_fee_mode": "pass_to_customer", "paymongo_fee_percent": "2.5", "paymongo_fee_flat": "15",
+}
+
+
+async def get_payment_settings(db: AsyncSession, tenant_id: uuid.UUID | None = None) -> dict:
+    query = select(AppSetting).where(AppSetting.key.in_(PAYMENT_KEYS))
+    if tenant_id is not None:
+        query = query.where(AppSetting.owner_id == tenant_id)
+    else:
+        query = query.where(AppSetting.owner_id.is_(None))
+    result = await db.execute(query)
+    saved = {s.key: s.value for s in result.scalars().all()}
+    return {k: saved.get(k, v) for k, v in PAYMENT_DEFAULTS.items()}
+
+
+@router.get("/payments")
+async def get_payments(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Get payment gateway settings (secret key masked)."""
+    tid = uuid.UUID(tenant_id)
+    settings = await get_payment_settings(db, tenant_id=tid)
+    if settings.get("paymongo_secret_key"):
+        settings["paymongo_secret_key"] = "********"
+    if settings.get("paymongo_webhook_secret"):
+        settings["paymongo_webhook_secret"] = "********"
+    return settings
+
+
+@router.put("/payments")
+async def update_payments(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Save payment gateway settings."""
+    tid = uuid.UUID(tenant_id)
+    allowed = {k: v for k, v in body.items() if k in PAYMENT_KEYS}
+    # Don't overwrite secrets with masked placeholder
+    for secret_key in ("paymongo_secret_key", "paymongo_webhook_secret"):
+        if allowed.get(secret_key) == "********":
+            del allowed[secret_key]
+    for key, value in allowed.items():
+        await save_setting(db, key, str(value), tenant_id=tid)
+    await db.flush()
+    return {"status": "saved", "keys_updated": list(allowed.keys())}
+
+
+@router.post("/payments/test")
+async def test_payments(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Test PayMongo API connection with the provided secret key."""
+    from app.services.paymongo import test_connection
+    secret_key = body.get("secret_key", "")
+    if not secret_key:
+        raise HTTPException(status_code=400, detail="secret_key required")
+    success = await test_connection(secret_key)
+    return {"success": success}
 
 
 @router.post("/branding/logo")

@@ -101,6 +101,11 @@ def _extract_template_vars_from_text(plain_text: str, customer_name: str) -> dic
     if plan_match:
         vars["plan_name"] = plan_match.group(1).strip()
 
+    # Extract payment URL (e.g. "Pay online: https://example.com/pay/...")
+    pay_url_match = re.search(r"(?:Pay (?:online|now): ?)(https?://\S+)", plain_text)
+    if pay_url_match:
+        vars["payment_url"] = pay_url_match.group(1)
+
     return vars
 
 
@@ -149,6 +154,7 @@ def render_html_email(
     # Prepare content template variables
     content_vars = dict(template_vars)
     content_vars["portal_url"] = portal_url
+    content_vars.setdefault("payment_url", "")
     content_vars["primary_color"] = color
 
     # Render content from category-specific template

@@ -25,7 +25,11 @@
     </td>
   </tr>
 </table>
-{% if portal_url %}
+{% if payment_url %}
+<p style="text-align:center;margin:0 0 16px;">
+  <a href="{{ payment_url }}" style="display:inline-block;padding:12px 32px;background-color:{{ primary_color | default('#e8700a') }};color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">Pay Now</a>
+</p>
+{% elif portal_url %}
 <p style="text-align:center;margin:0 0 16px;">
   <a href="{{ portal_url }}" style="display:inline-block;padding:12px 32px;background-color:{{ primary_color | default('#e8700a') }};color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">View Invoice</a>
 </p>

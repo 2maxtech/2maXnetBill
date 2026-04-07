@@ -148,3 +148,25 @@ export function getHotspotBranding() {
 export function saveHotspotBranding(data: Record<string, string>) {
   return api.put('/settings/hotspot-branding', data)
 }
+
+// Payment Settings (PayMongo)
+export interface PaymentSettings {
+  paymongo_secret_key: string
+  paymongo_public_key: string
+  paymongo_webhook_secret: string
+  paymongo_fee_mode: string
+  paymongo_fee_percent: string
+  paymongo_fee_flat: string
+}
+
+export function getPaymentSettings() {
+  return api.get<PaymentSettings>('/settings/payments')
+}
+
+export function savePaymentSettings(data: Record<string, string>) {
+  return api.put('/settings/payments', data)
+}
+
+export function testPaymentConnection(data: { secret_key: string }) {
+  return api.post('/settings/payments/test', data)
+}

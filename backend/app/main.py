@@ -25,6 +25,7 @@ from app.api.admin.libreqos import router as libreqos_router
 from app.api.admin.onboarding import router as onboarding_router
 from app.api.admin.system import router as system_router
 from app.api.setup import router as setup_router
+from app.api.payment import router as payment_router
 from app.core.config import settings
 
 from app.core.demo_guard import DemoGuardMiddleware
@@ -82,6 +83,7 @@ app.include_router(libreqos_router, prefix=settings.API_V1_PREFIX)
 app.include_router(setup_router, prefix=settings.API_V1_PREFIX)
 app.include_router(onboarding_router, prefix=settings.API_V1_PREFIX)
 app.include_router(system_router, prefix=settings.API_V1_PREFIX)
+app.include_router(payment_router, prefix=settings.API_V1_PREFIX)
 
 
 # Serve uploaded files

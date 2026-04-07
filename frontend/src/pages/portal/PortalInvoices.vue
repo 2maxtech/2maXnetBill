@@ -94,6 +94,13 @@ onMounted(fetchInvoices)
               <td class="px-4 py-3 text-sm text-gray-500">{{ dayjs(inv.issued_at).format('MMM D, YYYY') }}</td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">
+                  <a
+                    v-if="inv.payment_token && inv.status !== 'paid'"
+                    :href="`/pay/${inv.payment_token}`"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors"
+                  >
+                    Pay Now
+                  </a>
                   <button
                     @click="handlePrint(inv)"
                     title="Print"
