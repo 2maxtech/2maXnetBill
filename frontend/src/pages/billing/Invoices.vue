@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import { getInvoices, generateInvoices, downloadInvoicePdf, deleteInvoice, type Invoice } from '../../api/billing'
 import { getCustomers, type Customer } from '../../api/customers'
-import { bulkMarkPaid, bulkSendNotification, bulkDeleteInvoices } from '../../api/bulk'
+import { bulkMarkPaid, bulkSendNotification, bulkDeleteInvoices, bulkDownloadPdf } from '../../api/bulk'
 import { useAuth } from '../../composables/useAuth'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import Modal from '../../components/common/Modal.vue'
@@ -103,6 +103,29 @@ async function handleBulkSendNotification() {
     fetchInvoices()
   } catch (e: any) {
     bulkMessage.value = e.response?.data?.detail || 'Bulk notification failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// Bulk download PDF
+async function handleBulkDownloadPdf() {
+  const ids = Array.from(selectedIds.value)
+  bulkLoading.value = true
+  bulkMessage.value = ''
+  try {
+    const { data } = await bulkDownloadPdf(ids)
+    const url = window.URL.createObjectURL(new Blob([data], { type: 'application/zip' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'invoices.pdf.zip'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+    bulkMessage.value = `Downloaded ${ids.length} invoice(s) as ZIP`
+  } catch (e: any) {
+    bulkMessage.value = e.response?.data?.detail || 'PDF download failed'
   } finally {
     bulkLoading.value = false
   }
@@ -546,6 +569,13 @@ onMounted(fetchInvoices)
             <span v-if="bulkMessage" class="text-xs text-green-600 font-medium ml-2">{{ bulkMessage }}</span>
           </div>
           <div class="flex items-center gap-2">
+            <button
+              @click="handleBulkDownloadPdf"
+              :disabled="bulkLoading"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Download PDF
+            </button>
             <button
               @click="handleBulkMarkPaid"
               :disabled="bulkLoading"

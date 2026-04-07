@@ -315,6 +315,45 @@ async def bulk_send_invoice_notification(
     return BulkActionResponse(success=success, failed=failed, errors=errors)
 
 
+@router.post("/invoices/bulk/download-pdf")
+async def bulk_download_pdf(
+    body: BulkInvoiceIdsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Download multiple invoices as a ZIP of PDFs."""
+    import io
+    import zipfile
+
+    tid = uuid.UUID(tenant_id)
+    branding = await get_branding_settings(db, tenant_id=tid)
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for inv_id in body.invoice_ids:
+            result = await db.execute(
+                select(Invoice).where(Invoice.id == inv_id, Invoice.owner_id == tid)
+            )
+            invoice = result.scalar_one_or_none()
+            if not invoice:
+                continue
+            customer = invoice.customer
+            plan = invoice.plan
+            payments = invoice.payments or []
+            total_paid = sum(p.amount for p in payments)
+            pdf_bytes = generate_invoice_pdf(invoice, customer, plan, payments, total_paid, branding=branding)
+            customer_name = customer.full_name.replace(" ", "_") if customer else "unknown"
+            zf.writestr(f"invoice-{customer_name}-{str(invoice.id)[:8]}.pdf", pdf_bytes)
+
+    zip_buffer.seek(0)
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="invoices.zip"'},
+    )
+
+
 @router.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(
     invoice_id: uuid.UUID,

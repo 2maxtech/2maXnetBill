@@ -24,3 +24,6 @@ export function bulkSendNotification(invoiceIds: string[]) {
 export function bulkDeleteInvoices(invoiceIds: string[], password: string) {
   return api.post<BulkResponse>('/billing/invoices/bulk/delete', { invoice_ids: invoiceIds, password })
 }
+export function bulkDownloadPdf(invoiceIds: string[]) {
+  return api.post('/billing/invoices/bulk/download-pdf', { invoice_ids: invoiceIds }, { responseType: 'blob' })
+}
