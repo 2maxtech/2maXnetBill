@@ -573,7 +573,7 @@ onMounted(fetchInvoices)
     </Teleport>
 
     <!-- Bulk Delete Password Modal -->
-    <Modal :show="showDeletePasswordModal" title="Confirm Delete" @close="showDeletePasswordModal = false">
+    <Modal :open="showDeletePasswordModal" title="Confirm Delete" @close="showDeletePasswordModal = false">
       <p class="text-sm text-gray-600 mb-1">You are about to delete <strong>{{ selectedIds.size }} invoice(s)</strong>.</p>
       <p class="text-sm text-red-600 mb-4">Paid invoices will be skipped. This action cannot be undone.</p>
       <div v-if="deleteError" class="mb-3 rounded-lg px-3 py-2 text-sm bg-red-50 border border-red-200 text-red-700">{{ deleteError }}</div>
