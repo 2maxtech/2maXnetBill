@@ -104,7 +104,7 @@ async function sendMessage() {
     messages.value.push({
       id: nextId++,
       role: 'assistant',
-      content: data.reply || data.message || 'Sorry, I could not process that request.',
+      content: data.response || data.reply || data.message || 'Sorry, I could not process that request.',
     })
     trimMessages()
   } catch (err: any) {
