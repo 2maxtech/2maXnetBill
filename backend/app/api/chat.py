@@ -244,6 +244,36 @@ View in admin panel: {settings.BASE_URL}/system/support
     except Exception as e:
         logger.warning("Failed to notify super admin: %s", e)
 
+    # Telegram notification
+    await _notify_telegram(ticket)
+
+
+async def _notify_telegram(ticket) -> None:
+    """Send Telegram notification for new support tickets."""
+    bot_token = settings.TELEGRAM_BOT_TOKEN
+    chat_id = settings.TELEGRAM_CHAT_ID
+    if not bot_token or not chat_id:
+        return
+    try:
+        import httpx
+        category_emoji = "🐛" if ticket.category == "bug" else "💡"
+        text = (
+            f"{category_emoji} *New {ticket.category.replace('_', ' ').title()}*\n\n"
+            f"*From:* {ticket.tenant_name}\n"
+            f"*Email:* {ticket.tenant_email}\n\n"
+            f"*Message:* {ticket.description[:500]}\n\n"
+            f"[View in Admin]({settings.BASE_URL}/system/support)"
+        )
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+                timeout=10,
+            )
+        logger.info("Telegram notification sent for ticket: %s", ticket.subject[:60])
+    except Exception as e:
+        logger.warning("Telegram notification failed: %s", e)
+
 
 # ---------------------------------------------------------------------------
 # Schemas

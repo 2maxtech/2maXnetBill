@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # AI Chat (Claude)
     ANTHROPIC_API_KEY: str = ""
 
+    # Telegram notifications
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_CHAT_ID: str = ""
+
     # Email notifications (configure via .env)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
