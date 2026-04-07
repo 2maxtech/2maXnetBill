@@ -111,7 +111,8 @@ function handleExit() {
       leave-from-class="translate-y-0 opacity-100"
       leave-to-class="translate-y-4 opacity-0"
     >
-      <div v-if="toastVisible" class="fixed bottom-6 right-6 z-50 bg-gray-900 dark:bg-gray-700 text-white px-5 py-3 rounded-xl shadow-lg text-sm max-w-sm">
+      <div v-if="toastVisible" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-medium flex items-center gap-3 max-w-md">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/></svg>
         {{ toastMessage }}
       </div>
     </Transition>
