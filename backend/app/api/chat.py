@@ -350,7 +350,8 @@ async def chat(body: ChatRequest, request: Request, db: AsyncSession = Depends(g
                 },
             })
 
-    content_blocks.append({"type": "text", "text": body.message})
+    text = body.message.strip() or ("Please describe what you see in the image." if body.images else "Hi")
+    content_blocks.append({"type": "text", "text": text})
     messages.append({"role": "user", "content": content_blocks})
 
     # Call Claude
