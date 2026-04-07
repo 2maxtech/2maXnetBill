@@ -367,6 +367,63 @@ async def update_branding(
     return {"status": "saved", "keys_updated": list(allowed.keys())}
 
 
+# --- Hotspot Captive Portal Branding ---
+
+HOTSPOT_BRANDING_KEYS = [
+    "hotspot_title",
+    "hotspot_welcome_message",
+    "hotspot_logo_url",
+    "hotspot_background_color",
+    "hotspot_text_color",
+]
+
+HOTSPOT_BRANDING_DEFAULTS = {
+    "hotspot_title": "Welcome",
+    "hotspot_welcome_message": "Enter your voucher code to connect",
+    "hotspot_logo_url": "",
+    "hotspot_background_color": "#1a1a2e",
+    "hotspot_text_color": "#ffffff",
+}
+
+
+async def get_hotspot_branding_settings(db: AsyncSession, tenant_id: uuid.UUID | None = None) -> dict:
+    query = select(AppSetting).where(AppSetting.key.in_(HOTSPOT_BRANDING_KEYS))
+    if tenant_id is not None:
+        query = query.where(AppSetting.owner_id == tenant_id)
+    else:
+        query = query.where(AppSetting.owner_id.is_(None))
+    result = await db.execute(query)
+    saved = {s.key: s.value for s in result.scalars().all()}
+    return {k: saved.get(k, v) for k, v in HOTSPOT_BRANDING_DEFAULTS.items()}
+
+
+@router.get("/hotspot-branding")
+async def get_hotspot_branding(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Get hotspot captive portal branding settings."""
+    tid = uuid.UUID(tenant_id)
+    return await get_hotspot_branding_settings(db, tenant_id=tid)
+
+
+@router.put("/hotspot-branding")
+async def update_hotspot_branding(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Save hotspot captive portal branding settings."""
+    tid = uuid.UUID(tenant_id)
+    allowed = {k: v for k, v in body.items() if k in HOTSPOT_BRANDING_KEYS}
+    for key, value in allowed.items():
+        await save_setting(db, key, str(value), tenant_id=tid)
+    await db.flush()
+    return {"status": "saved", "keys_updated": list(allowed.keys())}
+
+
 @router.post("/branding/logo")
 async def upload_logo(
     file: UploadFile = File(...),

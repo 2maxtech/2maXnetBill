@@ -4,12 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
 import { useImpersonate } from '../../composables/useImpersonate'
 import { isOnPremise } from '../../composables/useDeploymentMode'
+import { useTheme } from '../../composables/useTheme'
 
 const route = useRoute()
 const router = useRouter()
 const collapsed = ref(false)
 const { user } = useAuth()
 const { isImpersonating } = useImpersonate()
+const { isDark, toggle: toggleTheme } = useTheme()
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
 const showAdminMenu = computed(() => isOnPremise || !isSuperAdmin.value || isImpersonating.value)
 
@@ -156,6 +158,27 @@ function navigate(path: string) {
         </template>
       </template>
     </nav>
+
+    <!-- Theme toggle -->
+    <button
+      @click="toggleTheme"
+      class="flex items-center gap-3 px-3 py-2 mx-2 rounded-lg text-sm font-medium hover:bg-sidebar-hover hover:text-white transition-colors"
+      :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+    >
+      <!-- Sun icon (shown in dark mode) -->
+      <svg v-if="isDark" class="w-5 h-5 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <!-- Moon icon (shown in light mode) -->
+      <svg v-else class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+      </svg>
+      <span v-if="!collapsed">{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
+    </button>
 
     <!-- Collapse toggle -->
     <button

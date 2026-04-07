@@ -17,19 +17,22 @@ import {
   updateProfile,
   getNotificationTemplates,
   saveNotificationTemplates,
+  getHotspotBranding,
+  saveHotspotBranding,
   type SmtpSettings,
   type SmsSettings,
   type BrandingSettings,
   type BillingSettingsType,
   type ProfileUpdate,
   type NotificationTemplates,
+  type HotspotBranding,
 } from '../api/settings'
 
 const { user } = useAuth()
 import { useImpersonate } from '../composables/useImpersonate'
 const { isImpersonating } = useImpersonate()
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin' && !isImpersonating.value)
-const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding' | 'notifications' | 'libreqos'>(isImpersonating.value ? 'billing' : 'account')
+const activeTab = ref<'account' | 'billing' | 'smtp' | 'sms' | 'branding' | 'notifications' | 'hotspot' | 'libreqos'>(isImpersonating.value ? 'billing' : 'account')
 
 // SMTP
 const smtp = ref<SmtpSettings>({
@@ -124,6 +127,19 @@ const templatesLoading = ref(false)
 const templatesSaving = ref(false)
 const templatesMsg = ref('')
 const templatesMsgType = ref<'success' | 'error'>('success')
+
+// Hotspot Branding
+const hotspot = ref<HotspotBranding>({
+  hotspot_title: 'Welcome',
+  hotspot_welcome_message: 'Enter your voucher code to connect',
+  hotspot_logo_url: '',
+  hotspot_background_color: '#1a1a2e',
+  hotspot_text_color: '#ffffff',
+})
+const hotspotLoading = ref(false)
+const hotspotSaving = ref(false)
+const hotspotMsg = ref('')
+const hotspotMsgType = ref<'success' | 'error'>('success')
 
 // Account
 const account = ref({
@@ -423,6 +439,34 @@ function copyLibreqosUrl() {
   setTimeout(() => { libreqosCopied.value = false }, 2000)
 }
 
+async function loadHotspot() {
+  hotspotLoading.value = true
+  try {
+    const { data } = await getHotspotBranding()
+    hotspot.value = { ...hotspot.value, ...data }
+  } catch {
+    hotspotMsg.value = 'Failed to load hotspot settings'
+    hotspotMsgType.value = 'error'
+  } finally {
+    hotspotLoading.value = false
+  }
+}
+
+async function handleSaveHotspot() {
+  hotspotSaving.value = true
+  hotspotMsg.value = ''
+  try {
+    await saveHotspotBranding(hotspot.value as unknown as Record<string, string>)
+    hotspotMsg.value = 'Hotspot branding saved successfully'
+    hotspotMsgType.value = 'success'
+  } catch (e: any) {
+    hotspotMsg.value = e.response?.data?.detail || 'Failed to save hotspot settings'
+    hotspotMsgType.value = 'error'
+  } finally {
+    hotspotSaving.value = false
+  }
+}
+
 async function loadTemplates() {
   templatesLoading.value = true
   try {
@@ -458,6 +502,7 @@ onMounted(() => {
   loadSms()
   loadBranding()
   loadTemplates()
+  loadHotspot()
   loadLibreqos()
 })
 </script>
@@ -538,6 +583,18 @@ onMounted(() => {
         ]"
       >
         Notifications
+      </button>
+      <button
+        v-if="!isSuperAdmin"
+        @click="activeTab = 'hotspot'"
+        :class="[
+          'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+          activeTab === 'hotspot'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ]"
+      >
+        Hotspot
       </button>
       <button
         v-if="!isSuperAdmin"
@@ -1204,6 +1261,116 @@ onMounted(() => {
             {{ templatesSaving ? 'Saving...' : 'Save Templates' }}
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Hotspot Tab -->
+    <div v-if="activeTab === 'hotspot'" class="space-y-6">
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Hotspot Captive Portal</h2>
+        <p class="text-sm text-gray-500 mb-4">Customize the look and feel of your hotspot captive portal login page.</p>
+
+        <div
+          v-if="hotspotMsg"
+          :class="['mb-4 rounded-lg px-4 py-3 text-sm border', hotspotMsgType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700']"
+        >{{ hotspotMsg }}</div>
+
+        <div v-if="hotspotLoading" class="space-y-4">
+          <div v-for="i in 4" :key="i" class="h-10 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
+
+        <form v-else @submit.prevent="handleSaveHotspot" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+              <input
+                v-model="hotspot.hotspot_title"
+                type="text"
+                placeholder="Welcome"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Logo URL</label>
+              <input
+                v-model="hotspot.hotspot_logo_url"
+                type="text"
+                placeholder="https://example.com/logo.png"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Welcome Message</label>
+            <textarea
+              v-model="hotspot.hotspot_welcome_message"
+              rows="2"
+              placeholder="Enter your voucher code to connect"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-none"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Background Color</label>
+              <div class="flex items-center gap-3">
+                <input
+                  v-model="hotspot.hotspot_background_color"
+                  type="color"
+                  class="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer p-1"
+                />
+                <input
+                  v-model="hotspot.hotspot_background_color"
+                  type="text"
+                  class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Text Color</label>
+              <div class="flex items-center gap-3">
+                <input
+                  v-model="hotspot.hotspot_text_color"
+                  type="color"
+                  class="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer p-1"
+                />
+                <input
+                  v-model="hotspot.hotspot_text_color"
+                  type="text"
+                  class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Preview -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Preview</label>
+            <div
+              class="rounded-lg border border-gray-200 p-8 flex flex-col items-center justify-center min-h-[200px]"
+              :style="{ backgroundColor: hotspot.hotspot_background_color, color: hotspot.hotspot_text_color }"
+            >
+              <img
+                v-if="hotspot.hotspot_logo_url"
+                :src="hotspot.hotspot_logo_url"
+                class="w-16 h-16 object-contain mb-4"
+                alt="Logo"
+              />
+              <h3 class="text-xl font-bold mb-2">{{ hotspot.hotspot_title || 'Welcome' }}</h3>
+              <p class="text-sm opacity-80 mb-4">{{ hotspot.hotspot_welcome_message || 'Enter your voucher code to connect' }}</p>
+              <div class="w-48 h-9 rounded-lg border border-white/30 bg-white/10" />
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              :disabled="hotspotSaving"
+              class="px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+            >
+              {{ hotspotSaving ? 'Saving...' : 'Save Hotspot Settings' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 

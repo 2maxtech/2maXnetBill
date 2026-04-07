@@ -24,6 +24,12 @@ onMounted(() => {
           </div>
         </div>
         <div class="flex items-center gap-2 sm:gap-3">
+          <router-link to="/self-hosted" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+            Self-Hosted
+          </router-link>
+          <router-link to="/setup-guide" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+            Setup Guide
+          </router-link>
           <router-link to="/register" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-primary border border-primary hover:bg-primary/5 rounded-lg transition-colors">
             Register
           </router-link>
@@ -186,20 +192,20 @@ onMounted(() => {
               Join the Beta — It's Free
             </router-link>
           </div>
-          <div class="rounded-xl border border-gray-200 p-8 relative overflow-hidden">
-            <div class="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-bold px-6 py-1 rotate-45 translate-x-6 translate-y-3">SOON</div>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 mb-4">Coming Soon</span>
+          <div class="rounded-xl border border-primary/30 bg-primary/5 p-8 relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-6 py-1 rotate-45 translate-x-6 translate-y-3">LIVE</div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 mb-4">Available Now</span>
             <h3 class="text-xl font-bold text-gray-900">On-Premise (Docker)</h3>
             <p class="text-sm text-gray-500 mt-2">Install on your own server. Full control, your data stays on your network.</p>
-            <ul class="mt-5 space-y-2.5 text-sm text-gray-500">
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Router on same LAN — no VPN needed</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Data stays on your network</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> One-command Docker install</li>
-              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-gray-300 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Debian/Ubuntu or Windows with Docker</li>
+            <ul class="mt-5 space-y-2.5 text-sm text-gray-600">
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Router on same LAN — no VPN needed</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Data stays on your network</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> One-command Docker install</li>
+              <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Free during beta — up to 35 subscribers</li>
             </ul>
-            <button disabled class="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-gray-400 bg-gray-100 rounded-xl cursor-not-allowed">
-              Coming Soon
-            </button>
+            <router-link to="/self-hosted" class="mt-6 inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl transition-colors">
+              Get Started — Self-Hosted
+            </router-link>
           </div>
         </div>
       </div>

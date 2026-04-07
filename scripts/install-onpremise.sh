@@ -11,6 +11,15 @@ echo "  ║    ISP Billing Made Simple             ║"
 echo "  ╚═══════════════════════════════════════╝"
 echo ""
 
+# Check prerequisites
+for cmd in curl git; do
+  if ! command -v $cmd &> /dev/null; then
+    echo "Error: '$cmd' is not installed."
+    echo "Run: apt update && apt install -y curl git"
+    exit 1
+  fi
+done
+
 if [ "$EUID" -ne 0 ]; then
   echo "Error: Please run as root (sudo bash install-onpremise.sh)"
   exit 1

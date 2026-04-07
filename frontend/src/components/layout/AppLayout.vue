@@ -24,13 +24,13 @@ function handleExit() {
 </script>
 
 <template>
-  <div v-if="isLoading" class="flex items-center justify-center h-screen bg-gray-50">
+  <div v-if="isLoading" class="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
     <div class="flex flex-col items-center gap-3">
       <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <span class="text-sm text-gray-500">Loading...</span>
+      <span class="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
     </div>
   </div>
-  <div v-else class="flex h-screen bg-gray-50 overflow-hidden">
+  <div v-else class="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
     <Sidebar />
     <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Impersonation Banner -->
@@ -45,7 +45,7 @@ function handleExit() {
         </button>
       </div>
       <Header />
-      <main class="flex-1 overflow-y-auto p-6">
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
         <router-view />
       </main>
     </div>

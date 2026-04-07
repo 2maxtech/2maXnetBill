@@ -7,7 +7,7 @@ celery = Celery(
     "netbill",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.billing", "app.tasks.update_checker"],
+    include=["app.tasks.billing", "app.tasks.update_checker", "app.tasks.bandwidth"],
 )
 
 celery.conf.beat_schedule = {
@@ -34,6 +34,14 @@ celery.conf.beat_schedule = {
     "check-for-updates": {
         "task": "app.tasks.update_checker.check_updates_task",
         "schedule": crontab(hour="3", minute="30"),
+    },
+    "collect-bandwidth": {
+        "task": "app.tasks.bandwidth.collect_bandwidth_task",
+        "schedule": 900.0,
+    },
+    "check-data-caps": {
+        "task": "app.tasks.bandwidth.check_data_caps_task",
+        "schedule": crontab(hour="*/2", minute="15"),
     },
 }
 

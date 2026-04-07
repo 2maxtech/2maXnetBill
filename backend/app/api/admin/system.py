@@ -35,6 +35,36 @@ async def check_update(
     return {"update_available": False}
 
 
+@router.get("/logs")
+async def get_system_logs(
+    level: str = "all",
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get recent audit log entries."""
+    from app.models.audit_log import AuditLog
+    from sqlalchemy import desc
+
+    query = select(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit)
+    if level != "all":
+        query = query.where(AuditLog.action == level)
+    result = await db.execute(query)
+    logs = result.scalars().all()
+    return [
+        {
+            "id": str(log.id),
+            "action": log.action,
+            "entity_type": log.entity_type,
+            "details": log.details,
+            "user_id": str(log.user_id) if log.user_id else None,
+            "ip_address": log.ip_address,
+            "created_at": log.created_at.isoformat(),
+        }
+        for log in logs
+    ]
+
+
 @router.get("/version")
 async def get_version():
     """Get current app version and deployment mode (public)."""

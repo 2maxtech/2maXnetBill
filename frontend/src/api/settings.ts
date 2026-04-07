@@ -131,3 +131,20 @@ export function getNotificationTemplates() {
 export function saveNotificationTemplates(data: Record<string, string>) {
   return api.put('/settings/notifications', data)
 }
+
+// Hotspot Branding
+export interface HotspotBranding {
+  hotspot_title: string
+  hotspot_welcome_message: string
+  hotspot_logo_url: string
+  hotspot_background_color: string
+  hotspot_text_color: string
+}
+
+export function getHotspotBranding() {
+  return api.get<HotspotBranding>('/settings/hotspot-branding')
+}
+
+export function saveHotspotBranding(data: Record<string, string>) {
+  return api.put('/settings/hotspot-branding', data)
+}
