@@ -105,7 +105,7 @@ async def seed_demo_data() -> None:
             username="admin",
             password="",
             location="NOC — Brgy. San Isidro",
-            is_active=True,
+            is_active=False,
             owner_id=owner_id,
         )
         db.add(router)
