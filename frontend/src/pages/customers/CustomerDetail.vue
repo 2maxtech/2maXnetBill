@@ -228,6 +228,7 @@ async function handleEdit() {
   try {
     const payload: Record<string, any> = { ...editForm.value }
     if (!payload.pppoe_password) delete payload.pppoe_password
+    if (!payload.email) payload.email = null
     if (!payload.plan_id) payload.plan_id = null
     if (!payload.router_id) payload.router_id = null
     if (!payload.area_id) payload.area_id = null
@@ -236,7 +237,12 @@ async function handleEdit() {
     showEditModal.value = false
     await fetchCustomer()
   } catch (e: any) {
-    editError.value = e.response?.data?.detail || 'Failed to update customer.'
+    const detail = e.response?.data?.detail
+    if (Array.isArray(detail)) {
+      editError.value = detail.map((d: any) => `${d.loc?.slice(-1)?.[0] || 'field'}: ${d.msg}`).join(', ')
+    } else {
+      editError.value = detail || `Failed to update customer (${e.response?.status || 'network error'}).`
+    }
   } finally {
     editLoading.value = false
   }

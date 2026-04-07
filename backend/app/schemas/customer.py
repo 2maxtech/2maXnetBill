@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from app.models.customer import CustomerStatus
 from app.schemas.plan import PlanResponse
@@ -9,8 +9,8 @@ from app.schemas.plan import PlanResponse
 
 class CustomerCreate(BaseModel):
     full_name: str
-    email: EmailStr
-    phone: str
+    email: str | None = None
+    phone: str | None = None
     address: str | None = None
     pppoe_username: str
     pppoe_password: str
@@ -27,7 +27,7 @@ class CustomerCreate(BaseModel):
 
 class CustomerUpdate(BaseModel):
     full_name: str | None = None
-    email: EmailStr | None = None
+    email: str | None = None
     phone: str | None = None
     address: str | None = None
     pppoe_username: str | None = None
@@ -47,9 +47,9 @@ class CustomerUpdate(BaseModel):
 class CustomerResponse(BaseModel):
     id: uuid.UUID
     full_name: str
-    email: str
-    phone: str
-    address: str | None
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
     pppoe_username: str
     status: CustomerStatus
     plan_id: uuid.UUID

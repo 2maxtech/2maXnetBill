@@ -23,8 +23,8 @@ class Customer(BaseModel):
     )
 
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     pppoe_username: Mapped[str] = mapped_column(String(100), nullable=False)
     pppoe_password: Mapped[str] = mapped_column(String(255), nullable=False)
