@@ -33,6 +33,21 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
+async function exportCsv() {
+  const token = localStorage.getItem('token')
+  const params = new URLSearchParams({ format: 'csv' })
+  const response = await fetch(`/api/v1/network/active-sessions/?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'active-sessions.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(() => {
   loadData()
   refreshInterval = setInterval(loadData, 15000)
@@ -54,6 +69,14 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="flex items-center gap-4">
+        <!-- Export CSV -->
+        <button
+          @click="exportCsv"
+          class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Export CSV
+        </button>
+
         <!-- Connection Status -->
         <div class="flex items-center gap-2">
           <span

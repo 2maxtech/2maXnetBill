@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import { getInvoices, generateInvoices, downloadInvoicePdf, deleteInvoice, type Invoice } from '../../api/billing'
 import { getCustomers, type Customer } from '../../api/customers'
+import { bulkMarkPaid, bulkSendNotification } from '../../api/bulk'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
@@ -39,6 +40,70 @@ const showDeleteConfirm = ref(false)
 const deleteTarget = ref<Invoice | null>(null)
 const deleteLoading = ref(false)
 
+// Bulk selection
+const selectedIds = ref<Set<string>>(new Set())
+const allSelected = computed(() => invoices.value.length > 0 && invoices.value.every(inv => selectedIds.value.has(inv.id)))
+const someSelected = computed(() => invoices.value.some(inv => selectedIds.value.has(inv.id)) && !allSelected.value)
+const bulkLoading = ref(false)
+const bulkMessage = ref('')
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    invoices.value.forEach(inv => selectedIds.value.delete(inv.id))
+  } else {
+    invoices.value.forEach(inv => selectedIds.value.add(inv.id))
+  }
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function toggleSelect(id: string) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+  bulkMessage.value = ''
+}
+
+async function handleBulkMarkPaid() {
+  const ids = Array.from(selectedIds.value)
+  if (!confirm(`Mark ${ids.length} invoice(s) as paid?`)) return
+  bulkLoading.value = true
+  bulkMessage.value = ''
+  try {
+    const { data } = await bulkMarkPaid(ids)
+    bulkMessage.value = `Marked paid: ${data.success} success, ${data.failed} failed`
+    clearSelection()
+    fetchInvoices()
+  } catch (e: any) {
+    bulkMessage.value = e.response?.data?.detail || 'Bulk mark paid failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+async function handleBulkSendNotification() {
+  const ids = Array.from(selectedIds.value)
+  if (!confirm(`Send notification for ${ids.length} invoice(s)?`)) return
+  bulkLoading.value = true
+  bulkMessage.value = ''
+  try {
+    const { data } = await bulkSendNotification(ids)
+    bulkMessage.value = `Notifications sent: ${data.success} success, ${data.failed} failed`
+    clearSelection()
+    fetchInvoices()
+  } catch (e: any) {
+    bulkMessage.value = e.response?.data?.detail || 'Bulk notification failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
 async function fetchInvoices() {
   loading.value = true
   try {
@@ -56,10 +121,14 @@ async function fetchInvoices() {
   }
 }
 
-watch(page, fetchInvoices)
+watch(page, () => {
+  clearSelection()
+  fetchInvoices()
+})
 
 function applyFilters() {
   page.value = 1
+  clearSelection()
   fetchInvoices()
 }
 
@@ -165,6 +234,24 @@ function formatCurrency(val: number | string) {
   return '₱' + Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+async function exportCsv() {
+  const token = localStorage.getItem('token')
+  const params = new URLSearchParams({ format: 'csv' })
+  if (filterStatus.value) params.set('status', filterStatus.value)
+  if (filterFromDate.value) params.set('from_date', filterFromDate.value)
+  if (filterToDate.value) params.set('to_date', filterToDate.value)
+  const response = await fetch(`/api/v1/billing/invoices/?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'invoices.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(fetchInvoices)
 </script>
 
@@ -227,6 +314,12 @@ onMounted(fetchInvoices)
           <svg class="w-4 h-4 inline-block mr-1 -mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg>
           Refresh
         </button>
+        <button
+          @click="exportCsv"
+          class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Export CSV
+        </button>
       </div>
     </div>
 
@@ -236,6 +329,15 @@ onMounted(fetchInvoices)
         <table class="w-full">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-100">
+              <th class="px-3 py-3 w-10">
+                <input
+                  type="checkbox"
+                  :checked="allSelected"
+                  :indeterminate="someSelected"
+                  @change="toggleSelectAll"
+                  class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/30 cursor-pointer"
+                />
+              </th>
               <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">Customer</th>
               <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Amount</th>
               <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Paid</th>
@@ -248,11 +350,11 @@ onMounted(fetchInvoices)
           <tbody class="divide-y divide-gray-50">
             <!-- Loading -->
             <template v-if="loading">
-              <tr><td :colspan="7" class="p-0"><SkeletonTable :cols="7" :rows="5" /></td></tr>
+              <tr><td :colspan="8" class="p-0"><SkeletonTable :cols="8" :rows="5" /></td></tr>
             </template>
             <!-- Empty -->
             <tr v-else-if="!invoices.length">
-              <td colspan="7">
+              <td colspan="8">
                 <EmptyState
                   icon="receipt"
                   title="No invoices yet"
@@ -263,6 +365,14 @@ onMounted(fetchInvoices)
             </tr>
             <!-- Rows -->
             <tr v-else v-for="inv in invoices" :key="inv.id" class="hover:bg-gray-50/50 transition-colors">
+              <td class="px-3 py-3 w-10">
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.has(inv.id)"
+                  @change="toggleSelect(inv.id)"
+                  class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/30 cursor-pointer"
+                />
+              </td>
               <td class="px-4 py-3 text-sm text-gray-700 font-medium">{{ inv.customer_name }}</td>
               <td class="px-4 py-3 text-sm text-gray-700 text-right">{{ formatCurrency(inv.amount) }}</td>
               <td class="px-4 py-3 text-sm text-gray-700 text-right">{{ formatCurrency(inv.total_paid) }}</td>
@@ -382,5 +492,41 @@ onMounted(fetchInvoices)
       @confirm="handleDelete"
       @cancel="showDeleteConfirm = false; deleteTarget = null"
     />
+
+    <!-- Bulk Action Floating Bar -->
+    <Teleport to="body">
+      <transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="translate-y-full opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition ease-in duration-150"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="translate-y-full opacity-0"
+      >
+        <div v-if="selectedIds.size > 0" class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-6 py-3 flex items-center justify-between ml-0 lg:ml-64">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ selectedIds.size }} selected</span>
+            <button @click="clearSelection" class="text-xs text-gray-500 hover:text-gray-700 underline">Clear</button>
+            <span v-if="bulkMessage" class="text-xs text-green-600 font-medium ml-2">{{ bulkMessage }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="handleBulkMarkPaid"
+              :disabled="bulkLoading"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Mark as Paid
+            </button>
+            <button
+              @click="handleBulkSendNotification"
+              :disabled="bulkLoading"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Send Notification
+            </button>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>

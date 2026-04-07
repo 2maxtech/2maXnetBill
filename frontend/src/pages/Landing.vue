@@ -1,14 +1,30 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { demoLogin } from '../api/auth'
 
 const router = useRouter()
+const demoLoading = ref(false)
 
 onMounted(() => {
   if (localStorage.getItem('access_token')) {
     router.replace('/dashboard')
   }
 })
+
+async function tryDemo() {
+  demoLoading.value = true
+  try {
+    const { data } = await demoLogin()
+    localStorage.setItem('access_token', data.access_token)
+    localStorage.setItem('refresh_token', data.refresh_token)
+    router.push('/dashboard')
+  } catch {
+    // Demo not available — silently ignore
+  } finally {
+    demoLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -59,9 +75,9 @@ onMounted(() => {
             <router-link to="/register" class="px-6 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 text-center">
               Join the Beta — It's Free
             </router-link>
-            <a href="#features" class="px-6 py-3 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-center">
-              Learn More
-            </a>
+            <button @click="tryDemo" :disabled="demoLoading" class="px-6 py-3 text-sm font-semibold text-primary border-2 border-primary hover:bg-primary/5 rounded-xl transition-colors text-center disabled:opacity-50">
+              {{ demoLoading ? 'Loading...' : 'Try Demo' }}
+            </button>
           </div>
           <div class="flex flex-wrap items-center gap-4 sm:gap-6 mt-8 sm:mt-10 text-sm text-gray-400">
             <div class="flex items-center gap-2">
@@ -221,9 +237,9 @@ onMounted(() => {
           <router-link to="/register" class="px-8 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 text-center">
             Join the Beta — It's Free
           </router-link>
-          <router-link to="/login" class="px-8 py-3 text-sm font-semibold text-white border border-white/20 hover:bg-white/10 rounded-xl transition-colors text-center">
-            Admin Login
-          </router-link>
+          <button @click="tryDemo" :disabled="demoLoading" class="px-8 py-3 text-sm font-semibold text-white border-2 border-white/30 hover:bg-white/10 rounded-xl transition-colors text-center disabled:opacity-50">
+            {{ demoLoading ? 'Loading...' : 'Try Demo' }}
+          </button>
         </div>
       </div>
     </section>

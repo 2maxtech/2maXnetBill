@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCustomers, createCustomer, deleteCustomer, type Customer } from '../../api/customers'
 import { getPlans, type Plan } from '../../api/plans'
 import { getRouters, getAreas, importFromRouter, type RouterType, type AreaType } from '../../api/routers'
+import { bulkGenerateInvoices, bulkSendReminder, bulkChangeStatus } from '../../api/bulk'
 import DataTable from '../../components/common/DataTable.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import Pagination from '../../components/common/Pagination.vue'
@@ -59,6 +60,94 @@ const deleteTarget = ref<Customer | null>(null)
 const deletePassword = ref('')
 const deleteError = ref('')
 
+// Bulk selection
+const selectedIds = ref<Set<string>>(new Set())
+const allSelected = computed(() => customers.value.length > 0 && customers.value.every(c => selectedIds.value.has(c.id)))
+const someSelected = computed(() => customers.value.some(c => selectedIds.value.has(c.id)) && !allSelected.value)
+const bulkLoading = ref(false)
+const bulkMessage = ref('')
+const showStatusPicker = ref(false)
+const bulkTargetStatus = ref('suspended')
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    customers.value.forEach(c => selectedIds.value.delete(c.id))
+  } else {
+    customers.value.forEach(c => selectedIds.value.add(c.id))
+  }
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function toggleSelect(id: string) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+  bulkMessage.value = ''
+}
+
+async function handleBulkGenerateInvoices() {
+  const ids = Array.from(selectedIds.value)
+  if (!confirm(`Generate invoices for ${ids.length} customer(s)?`)) return
+  bulkLoading.value = true
+  bulkMessage.value = ''
+  try {
+    const { data } = await bulkGenerateInvoices(ids)
+    bulkMessage.value = `Invoices generated: ${data.success} success, ${data.failed} failed`
+    clearSelection()
+    fetchCustomers()
+  } catch (e: any) {
+    bulkMessage.value = e.response?.data?.detail || 'Bulk generate failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+async function handleBulkSendReminder() {
+  const ids = Array.from(selectedIds.value)
+  if (!confirm(`Send payment reminder to ${ids.length} customer(s)?`)) return
+  bulkLoading.value = true
+  bulkMessage.value = ''
+  try {
+    const { data } = await bulkSendReminder(ids)
+    bulkMessage.value = `Reminders sent: ${data.success} success, ${data.failed} failed`
+    clearSelection()
+    fetchCustomers()
+  } catch (e: any) {
+    bulkMessage.value = e.response?.data?.detail || 'Bulk reminder failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+async function handleBulkChangeStatus() {
+  showStatusPicker.value = true
+}
+
+async function confirmBulkChangeStatus() {
+  const ids = Array.from(selectedIds.value)
+  if (!confirm(`Change status to "${bulkTargetStatus.value}" for ${ids.length} customer(s)?`)) return
+  showStatusPicker.value = false
+  bulkLoading.value = true
+  bulkMessage.value = ''
+  try {
+    const { data } = await bulkChangeStatus(ids, bulkTargetStatus.value)
+    bulkMessage.value = `Status changed: ${data.success} success, ${data.failed} failed`
+    clearSelection()
+    fetchCustomers()
+  } catch (e: any) {
+    bulkMessage.value = e.response?.data?.detail || 'Bulk status change failed'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
 // Import from MikroTik
 const showImportModal = ref(false)
 const importRouterId = ref('')
@@ -81,6 +170,7 @@ async function handleImport() {
 }
 
 const columns = [
+  { key: 'select', label: '', width: '40px' },
   { key: 'full_name', label: 'Name' },
   { key: 'email', label: 'Email' },
   { key: 'pppoe_username', label: 'PPPoE Username' },
@@ -266,22 +356,42 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+async function exportCsv() {
+  const token = localStorage.getItem('token')
+  const params = new URLSearchParams({ format: 'csv' })
+  if (search.value) params.set('search', search.value)
+  if (statusFilter.value) params.set('status', statusFilter.value)
+  const response = await fetch(`/api/v1/customers/?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'customers.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // Debounced search
 let searchTimer: ReturnType<typeof setTimeout>
 watch(search, () => {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
     page.value = 1
+    clearSelection()
     fetchCustomers()
   }, 350)
 })
 
 watch(statusFilter, () => {
   page.value = 1
+  clearSelection()
   fetchCustomers()
 })
 
 watch(page, () => {
+  clearSelection()
   fetchCustomers()
 })
 
@@ -344,10 +454,34 @@ onMounted(() => {
         <option value="disconnected">Disconnected</option>
         <option value="terminated">Terminated</option>
       </select>
+      <button
+        @click="exportCsv"
+        class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        Export CSV
+      </button>
     </div>
 
     <!-- Table -->
     <DataTable :columns="columns" :data="customers" :loading="loading" empty-text="No customers found">
+      <template #header-select>
+        <input
+          type="checkbox"
+          :checked="allSelected"
+          :indeterminate="someSelected"
+          @change="toggleSelectAll"
+          class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/30 cursor-pointer"
+        />
+      </template>
+      <template #select="{ row }">
+        <input
+          type="checkbox"
+          :checked="selectedIds.has(row.id)"
+          @change.stop="toggleSelect(row.id)"
+          @click.stop
+          class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/30 cursor-pointer"
+        />
+      </template>
       <template #empty>
         <EmptyState
           icon="people"
@@ -815,5 +949,82 @@ onMounted(() => {
         </button>
       </template>
     </Modal>
+
+    <!-- Bulk Status Picker -->
+    <Modal :open="showStatusPicker" title="Change Customer Status" @close="showStatusPicker = false">
+      <div class="space-y-4">
+        <p class="text-sm text-gray-600">Select the new status for {{ selectedIds.size }} selected customer(s).</p>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Target Status</label>
+          <select
+            v-model="bulkTargetStatus"
+            class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+          >
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="disconnected">Disconnected</option>
+            <option value="terminated">Terminated</option>
+          </select>
+        </div>
+      </div>
+      <template #footer>
+        <button
+          @click="showStatusPicker = false"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          @click="confirmBulkChangeStatus"
+          :disabled="bulkLoading"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+        >
+          {{ bulkLoading ? 'Applying...' : 'Apply' }}
+        </button>
+      </template>
+    </Modal>
+
+    <!-- Bulk Action Floating Bar -->
+    <Teleport to="body">
+      <transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="translate-y-full opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition ease-in duration-150"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="translate-y-full opacity-0"
+      >
+        <div v-if="selectedIds.size > 0" class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-6 py-3 flex items-center justify-between ml-0 lg:ml-64">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ selectedIds.size }} selected</span>
+            <button @click="clearSelection" class="text-xs text-gray-500 hover:text-gray-700 underline">Clear</button>
+            <span v-if="bulkMessage" class="text-xs text-green-600 font-medium ml-2">{{ bulkMessage }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="handleBulkGenerateInvoices"
+              :disabled="bulkLoading"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-50"
+            >
+              Generate Invoices
+            </button>
+            <button
+              @click="handleBulkSendReminder"
+              :disabled="bulkLoading"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Send Reminder
+            </button>
+            <button
+              @click="handleBulkChangeStatus"
+              :disabled="bulkLoading"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Change Status
+            </button>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>

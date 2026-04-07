@@ -34,7 +34,9 @@ defineEmits<{
                 col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
               ]"
             >
-              {{ col.label }}
+              <slot :name="'header-' + col.key" :col="col">
+                {{ col.label }}
+              </slot>
             </th>
           </tr>
         </thead>

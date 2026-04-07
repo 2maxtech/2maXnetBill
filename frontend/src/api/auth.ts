@@ -9,6 +9,7 @@ export interface User {
   phone: string | null
   role: 'super_admin' | 'admin' | 'billing' | 'technician'
   is_active: boolean
+  is_demo: boolean
   created_at: string
 }
 
@@ -37,6 +38,10 @@ export function refreshToken(refresh_token: string) {
 
 export function getMe() {
   return api.get<User>('/auth/me')
+}
+
+export function demoLogin() {
+  return api.post<TokenResponse>('/auth/demo-login')
 }
 
 export function register(data: RegisterPayload) {

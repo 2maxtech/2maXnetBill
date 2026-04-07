@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { getDashboard, type DashboardData } from '../api/network'
 import { getRouters, getRouterStatus, type RouterType, type RouterStatus } from '../api/routers'
+import { getOnboardingStatus, dismissOnboarding, type OnboardingStatus } from '../api/onboarding'
 import { isOnPremise } from '../composables/useDeploymentMode'
 import { checkForUpdate, type UpdateInfo } from '../api/setup'
 import StatCard from '../components/common/StatCard.vue'
@@ -25,6 +26,23 @@ const data = ref<DashboardData | null>(null)
 const loading = ref(true)
 const error = ref('')
 const updateInfo = ref<UpdateInfo | null>(null)
+
+// Onboarding state
+const onboarding = ref<OnboardingStatus | null>(null)
+
+async function fetchOnboarding() {
+  try {
+    const { data: status } = await getOnboardingStatus()
+    onboarding.value = status
+  } catch { /* ignore — onboarding is non-critical */ }
+}
+
+async function dismiss() {
+  try {
+    await dismissOnboarding()
+    if (onboarding.value) onboarding.value.dismissed = true
+  } catch { /* ignore */ }
+}
 
 // Multi-router state
 const routers = ref<RouterType[]>([])
@@ -65,6 +83,7 @@ async function fetchDashboard() {
 
 onMounted(async () => {
   fetchDashboard()
+  fetchOnboarding()
   interval = setInterval(fetchDashboard, 5000)
   if (isOnPremise) {
     try {
@@ -197,8 +216,61 @@ function formatDate(s: string): string {
     </div>
 
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-      <p class="text-sm text-gray-500 mt-0.5">Real-time overview of your ISP operations</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Real-time overview of your ISP operations</p>
+    </div>
+
+    <!-- Onboarding checklist -->
+    <div v-if="onboarding && !onboarding.dismissed && onboarding.completed < onboarding.total"
+         class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Getting Started</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Complete these steps to set up your ISP billing</p>
+        </div>
+        <button @click="dismiss" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+        <div class="bg-primary h-2 rounded-full transition-all" :style="{ width: `${(onboarding.completed / onboarding.total) * 100}%` }"></div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">{{ onboarding.completed }}/{{ onboarding.total }} complete</p>
+
+      <!-- Checklist items -->
+      <div class="space-y-3">
+        <router-link to="/routers" class="flex items-center gap-3 group">
+          <svg v-if="onboarding.has_router" class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+          <svg v-else class="w-5 h-5 text-gray-300 dark:text-gray-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"/></svg>
+          <span class="text-sm group-hover:text-primary transition-colors" :class="onboarding.has_router ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-300'">Connect a router</span>
+        </router-link>
+
+        <router-link to="/plans" class="flex items-center gap-3 group">
+          <svg v-if="onboarding.has_plan" class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+          <svg v-else class="w-5 h-5 text-gray-300 dark:text-gray-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"/></svg>
+          <span class="text-sm group-hover:text-primary transition-colors" :class="onboarding.has_plan ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-300'">Create a plan</span>
+        </router-link>
+
+        <router-link to="/customers" class="flex items-center gap-3 group">
+          <svg v-if="onboarding.has_customer" class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+          <svg v-else class="w-5 h-5 text-gray-300 dark:text-gray-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"/></svg>
+          <span class="text-sm group-hover:text-primary transition-colors" :class="onboarding.has_customer ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-300'">Add customers</span>
+        </router-link>
+
+        <router-link to="/settings" class="flex items-center gap-3 group">
+          <svg v-if="onboarding.has_billing_config" class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+          <svg v-else class="w-5 h-5 text-gray-300 dark:text-gray-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"/></svg>
+          <span class="text-sm group-hover:text-primary transition-colors" :class="onboarding.has_billing_config ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-300'">Configure billing</span>
+        </router-link>
+
+        <router-link to="/settings" class="flex items-center gap-3 group">
+          <svg v-if="onboarding.has_notifications" class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+          <svg v-else class="w-5 h-5 text-gray-300 dark:text-gray-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"/></svg>
+          <span class="text-sm group-hover:text-primary transition-colors" :class="onboarding.has_notifications ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-300'">Set up notifications</span>
+        </router-link>
+      </div>
     </div>
 
     <!-- Loading Skeleton -->

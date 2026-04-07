@@ -106,6 +106,23 @@ function formatCurrency(val: number | string) {
   return '₱' + Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+async function exportCsv() {
+  const token = localStorage.getItem('token')
+  const params = new URLSearchParams({ format: 'csv' })
+  if (filterFromDate.value) params.set('from_date', filterFromDate.value)
+  if (filterToDate.value) params.set('to_date', filterToDate.value)
+  const response = await fetch(`/api/v1/billing/payments/?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'payments.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(fetchPayments)
 </script>
 
@@ -114,12 +131,20 @@ onMounted(fetchPayments)
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <h1 class="text-2xl font-bold text-gray-900">Payments</h1>
-      <button
-        @click="openRecordModal"
-        class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors"
-      >
-        Record Payment
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          @click="exportCsv"
+          class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Export CSV
+        </button>
+        <button
+          @click="openRecordModal"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors"
+        >
+          Record Payment
+        </button>
+      </div>
     </div>
 
     <!-- Filters -->

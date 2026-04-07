@@ -3,11 +3,13 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
 import { useImpersonate } from '../../composables/useImpersonate'
+import { useToast } from '../../composables/useToast'
 import Sidebar from './Sidebar.vue'
 import Header from './Header.vue'
 
-const { isLoading, isAuthenticated, init } = useAuth()
+const { user, isLoading, isAuthenticated, init } = useAuth()
 const { impersonating, isImpersonating, exitOrg } = useImpersonate()
+const { message: toastMessage, visible: toastVisible } = useToast()
 const router = useRouter()
 
 // Mobile sidebar
@@ -49,7 +51,14 @@ function handleExit() {
       <span class="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
     </div>
   </div>
-  <div v-else class="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+  <div v-else class="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <!-- Demo banner -->
+    <div v-if="user?.is_demo" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-center py-2 px-4 text-sm font-medium shrink-0">
+      You're exploring the demo &mdash;
+      <router-link to="/register" class="underline font-bold ml-1">Sign Up Free</router-link>
+      to manage your ISP
+    </div>
+    <div class="flex flex-1 overflow-hidden">
     <!-- Desktop sidebar (normal flow) -->
     <Sidebar v-if="!isMobile" />
 
@@ -91,5 +100,20 @@ function handleExit() {
         <router-view />
       </main>
     </div>
+    </div>
+
+    <!-- Toast notification -->
+    <Transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="translate-y-4 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="translate-y-4 opacity-0"
+    >
+      <div v-if="toastVisible" class="fixed bottom-6 right-6 z-50 bg-gray-900 dark:bg-gray-700 text-white px-5 py-3 rounded-xl shadow-lg text-sm max-w-sm">
+        {{ toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>

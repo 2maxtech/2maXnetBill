@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { isOnPremise } from '../composables/useDeploymentMode'
+import { useToast } from '../composables/useToast'
 
 let _tenantId: string | null = null
 
@@ -36,6 +37,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Demo mode: show toast on 403 write attempts
+    if (error.response?.status === 403) {
+      const detail = error.response.data?.detail || ''
+      if (typeof detail === 'string' && detail.includes('Demo mode')) {
+        const { show } = useToast()
+        show('Demo mode — sign up for full access')
+        return Promise.reject(error)
+      }
+    }
+
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
