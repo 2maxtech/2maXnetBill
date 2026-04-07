@@ -150,7 +150,7 @@ function copyUpdate() {
     <!-- Free Tier -->
     <section class="py-10 sm:py-14 px-4 sm:px-6">
       <div class="max-w-5xl mx-auto">
-        <h2 class="text-xl sm:text-2xl font-bold text-white mb-6">Free Tier Includes</h2>
+        <h2 class="text-xl sm:text-2xl font-bold text-white mb-6">What's Included — Free During Beta</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div v-for="item in freeTierItems" :key="item"
             class="flex items-start gap-3 rounded-xl bg-gray-900 border border-gray-800 p-4">
@@ -235,11 +235,13 @@ const quickStartSteps = [
 ]
 
 const freeTierItems = [
-  'Up to 35 subscribers',
-  '1 MikroTik router',
+  'Unlimited subscribers',
+  'Unlimited routers',
   'Billing & invoicing',
   'Customer portal',
   'Throttle/disconnect enforcement',
+  'Hotspot & vouchers',
+  'Email & SMS notifications',
 ]
 
 const usefulCommands = [
