@@ -9,6 +9,7 @@ import StatusBadge from '../../components/common/StatusBadge.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
+import EmptyState from '../../components/EmptyState.vue'
 
 const router = useRouter()
 
@@ -347,6 +348,18 @@ onMounted(() => {
 
     <!-- Table -->
     <DataTable :columns="columns" :data="customers" :loading="loading" empty-text="No customers found">
+      <template #empty>
+        <EmptyState
+          icon="people"
+          title="No customers yet"
+          description="Import existing subscribers from your MikroTik router or add them manually."
+          :actions="[
+            { label: 'Import from MikroTik', to: '/routers', primary: true },
+            { label: 'Add Customer', to: '#', primary: false },
+          ]"
+          @action="(label: string) => { if (label === 'Add Customer') openAddModal() }"
+        />
+      </template>
       <template #full_name="{ row }">
         <span class="font-medium text-gray-900">{{ row.full_name }}</span>
       </template>

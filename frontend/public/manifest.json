@@ -1,0 +1,13 @@
+{
+  "name": "NetLedger - ISP Billing",
+  "short_name": "NetLedger",
+  "description": "ISP Billing Made Simple",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e8700a",
+  "icons": [
+    { "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo-2.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

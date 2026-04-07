@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
 import { useImpersonate } from '../../composables/useImpersonate'
 import { isOnPremise } from '../../composables/useDeploymentMode'
 import { useTheme } from '../../composables/useTheme'
+
+const props = withDefaults(defineProps<{
+  isMobile?: boolean
+  isOpen?: boolean
+}>(), {
+  isMobile: false,
+  isOpen: false,
+})
+
+const emit = defineEmits<{
+  close: []
+}>()
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +26,11 @@ const { isImpersonating } = useImpersonate()
 const { isDark, toggle: toggleTheme } = useTheme()
 const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
 const showAdminMenu = computed(() => isOnPremise || !isSuperAdmin.value || isImpersonating.value)
+
+// Close sidebar on route change (mobile only)
+watch(() => route.path, () => {
+  if (props.isMobile) emit('close')
+})
 
 const icons: Record<string, string> = {
   dashboard: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>',
@@ -87,11 +104,128 @@ function isActive(path: string) {
 
 function navigate(path: string) {
   router.push(path)
+  if (props.isMobile) emit('close')
 }
 </script>
 
 <template>
+  <!-- Mobile: backdrop + sliding panel -->
+  <template v-if="isMobile">
+    <!-- Backdrop -->
+    <Transition
+      enter-active-class="transition-opacity duration-300 ease-in-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-300 ease-in-out"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="isOpen"
+        class="fixed inset-0 z-40 bg-black/50"
+        @click="emit('close')"
+      />
+    </Transition>
+
+    <!-- Sliding sidebar -->
+    <aside
+      :class="[
+        'fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-sidebar text-gray-300 transition-transform duration-300 ease-in-out',
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      ]"
+    >
+      <!-- Logo + close button -->
+      <div class="flex items-center justify-between px-4 py-5">
+        <div class="flex items-center gap-3">
+          <img src="/logo-2.png" alt="NetLedger" class="w-10 h-10 object-contain" />
+          <div>
+            <span class="text-white font-bold text-lg block leading-tight">NetLedger</span>
+            <span class="text-[10px] text-gray-500 font-medium">by 2max.tech</span>
+          </div>
+        </div>
+        <button
+          @click="emit('close')"
+          class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-sidebar-hover transition-colors"
+          aria-label="Close menu"
+        >
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        <template v-for="item in menuItems" :key="item.label">
+          <template v-if="item.children">
+            <button
+              @click="toggleMenu(item.label)"
+              class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover hover:text-white"
+            >
+              <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" v-html="icons[item.icon]" />
+              <span class="flex-1 text-left">{{ item.label }}</span>
+              <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': openMenus.includes(item.label) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <div v-if="openMenus.includes(item.label)" class="ml-4 space-y-0.5">
+              <button
+                v-for="child in item.children"
+                :key="child.path"
+                @click="navigate(child.path)"
+                :class="[
+                  'w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors',
+                  isActive(child.path!)
+                    ? 'bg-sidebar-active text-primary font-medium'
+                    : 'text-gray-400 hover:bg-sidebar-hover hover:text-white'
+                ]"
+              >
+                <span class="w-1.5 h-1.5 rounded-full" :class="isActive(child.path!) ? 'bg-primary' : 'bg-gray-600'" />
+                {{ child.label }}
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <button
+              @click="navigate(item.path!)"
+              :class="[
+                'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                isActive(item.path!)
+                  ? 'bg-sidebar-active text-white border-l-2 border-primary'
+                  : 'hover:bg-sidebar-hover hover:text-white'
+              ]"
+            >
+              <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" v-html="icons[item.icon]" />
+              <span>{{ item.label }}</span>
+            </button>
+          </template>
+        </template>
+      </nav>
+
+      <!-- Theme toggle -->
+      <button
+        @click="toggleTheme"
+        class="flex items-center gap-3 px-3 py-2 mx-2 rounded-lg text-sm font-medium hover:bg-sidebar-hover hover:text-white transition-colors"
+        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+      >
+        <svg v-if="isDark" class="w-5 h-5 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg v-else class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+        <span>{{ isDark ? 'Light Mode' : 'Dark Mode' }}</span>
+      </button>
+
+      <div class="py-2" />
+    </aside>
+  </template>
+
+  <!-- Desktop: normal sidebar in document flow -->
   <aside
+    v-else
     :class="[
       'flex flex-col h-screen bg-sidebar text-gray-300 transition-all duration-300 shrink-0',
       collapsed ? 'w-16' : 'w-56'

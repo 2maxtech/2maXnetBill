@@ -4,6 +4,8 @@ import { getPlans, createPlan, updatePlan, deletePlan, type Plan } from '../api/
 import StatusBadge from '../components/common/StatusBadge.vue'
 import Modal from '../components/common/Modal.vue'
 import ConfirmDialog from '../components/common/ConfirmDialog.vue'
+import SkeletonTable from '../components/SkeletonTable.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const plans = ref<Plan[]>([])
 const loading = ref(false)
@@ -178,15 +180,19 @@ onMounted(fetchPlans)
           <tbody class="divide-y divide-gray-50">
             <!-- Loading -->
             <template v-if="loading">
-              <tr v-for="i in 5" :key="i">
-                <td v-for="j in 7" :key="j" class="px-4 py-3">
-                  <div class="h-4 bg-gray-100 rounded animate-pulse" />
-                </td>
-              </tr>
+              <tr><td :colspan="7" class="p-0"><SkeletonTable :cols="7" :rows="5" /></td></tr>
             </template>
             <!-- Empty -->
             <tr v-else-if="!plans.length">
-              <td colspan="7" class="px-4 py-12 text-center text-gray-400">No plans found</td>
+              <td colspan="7">
+                <EmptyState
+                  icon="layers"
+                  title="No plans created"
+                  description="Create bandwidth plans with pricing that map to MikroTik PPPoE profiles."
+                  :actions="[{ label: 'Create Plan', to: '#', primary: true }]"
+                  @action="openAddModal"
+                />
+              </td>
             </tr>
             <!-- Rows -->
             <tr v-else v-for="plan in plans" :key="plan.id" class="hover:bg-gray-50/50 transition-colors">

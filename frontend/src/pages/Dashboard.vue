@@ -6,6 +6,8 @@ import { isOnPremise } from '../composables/useDeploymentMode'
 import { checkForUpdate, type UpdateInfo } from '../api/setup'
 import StatCard from '../components/common/StatCard.vue'
 import StatusBadge from '../components/common/StatusBadge.vue'
+import SkeletonCard from '../components/SkeletonCard.vue'
+import SkeletonTable from '../components/SkeletonTable.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -199,9 +201,29 @@ function formatDate(s: string): string {
       <p class="text-sm text-gray-500 mt-0.5">Real-time overview of your ISP operations</p>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    <!-- Loading Skeleton -->
+    <div v-if="loading" class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div class="xl:col-span-2 space-y-5">
+        <!-- Stat card skeletons -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SkeletonCard v-for="i in 4" :key="i" :lines="2" />
+        </div>
+        <!-- Chart skeleton -->
+        <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-5 animate-pulse">
+          <div class="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+          <div class="h-56 bg-gray-200 dark:bg-gray-700 rounded" />
+        </div>
+        <!-- Payments table skeleton -->
+        <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-5">
+          <div class="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded mb-3 animate-pulse" />
+          <SkeletonTable :cols="4" :rows="5" />
+        </div>
+      </div>
+      <!-- Router card skeletons -->
+      <div class="space-y-4">
+        <div class="h-3 w-28 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <SkeletonCard v-for="i in 2" :key="i" :lines="4" />
+      </div>
     </div>
 
     <!-- Error -->

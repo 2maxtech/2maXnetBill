@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
 import { useImpersonate } from '../../composables/useImpersonate'
@@ -10,11 +10,30 @@ const { isLoading, isAuthenticated, init } = useAuth()
 const { impersonating, isImpersonating, exitOrg } = useImpersonate()
 const router = useRouter()
 
+// Mobile sidebar
+const isMobile = ref(window.innerWidth < 768)
+const sidebarOpen = ref(false)
+
+let resizeTimer: ReturnType<typeof setTimeout>
+function onResize() {
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    isMobile.value = window.innerWidth < 768
+    if (!isMobile.value) sidebarOpen.value = false
+  }, 150)
+}
+
 onMounted(async () => {
+  window.addEventListener('resize', onResize)
   await init()
   if (!isAuthenticated.value) {
     router.push('/login')
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+  clearTimeout(resizeTimer)
 })
 
 function handleExit() {
@@ -31,8 +50,31 @@ function handleExit() {
     </div>
   </div>
   <div v-else class="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-    <Sidebar />
+    <!-- Desktop sidebar (normal flow) -->
+    <Sidebar v-if="!isMobile" />
+
+    <!-- Mobile sidebar (overlay) -->
+    <Sidebar v-if="isMobile" :is-mobile="true" :is-open="sidebarOpen" @close="sidebarOpen = false" />
+
     <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Mobile header bar with hamburger -->
+      <div v-if="isMobile" class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
+        <button
+          @click="sidebarOpen = true"
+          class="p-1.5 rounded-lg text-[#e8700a] hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors"
+          aria-label="Open menu"
+        >
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div class="flex items-center gap-2">
+          <img src="/logo-2.png" alt="NetLedger" class="w-7 h-7 object-contain" />
+          <span class="text-sm font-bold text-gray-800 dark:text-gray-200">NetLedger</span>
+        </div>
+        <div class="w-9" /> <!-- spacer to balance hamburger -->
+      </div>
+
       <!-- Impersonation Banner -->
       <div v-if="isImpersonating" class="flex items-center justify-between px-4 py-2 bg-primary text-white text-sm shrink-0">
         <div class="flex items-center gap-2">
@@ -44,8 +86,8 @@ function handleExit() {
           Exit to Platform
         </button>
       </div>
-      <Header />
-      <main class="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+      <Header v-if="!isMobile" />
+      <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
         <router-view />
       </main>
     </div>

@@ -20,6 +20,8 @@ import {
   type VpnSetupResponse,
 } from '../api/routers'
 import { scanNetwork } from '../api/network'
+import SkeletonTable from '../components/SkeletonTable.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const routers = ref<RouterType[]>([])
 const loading = ref(false)
@@ -342,16 +344,19 @@ onMounted(loadRouters)
             </tr>
           </thead>
           <tbody v-if="loading">
-            <tr>
-              <td colspan="6" class="px-4 py-12 text-center text-gray-400">
-                <svg class="w-6 h-6 animate-spin mx-auto mb-2 text-primary" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Loading routers...
-              </td>
-            </tr>
+            <tr><td :colspan="6" class="p-0"><SkeletonTable :cols="6" :rows="3" /></td></tr>
           </tbody>
           <tbody v-else-if="routers.length === 0">
             <tr>
-              <td colspan="6" class="px-4 py-12 text-center text-gray-400">No routers configured. Add your first router to get started.</td>
+              <td colspan="6">
+                <EmptyState
+                  icon="server"
+                  title="No routers connected"
+                  description="Connect your MikroTik router to start managing subscribers."
+                  :actions="[{ label: 'Add Router', to: '#', primary: true }]"
+                  @action="openAdd"
+                />
+              </td>
             </tr>
           </tbody>
           <tbody v-else>

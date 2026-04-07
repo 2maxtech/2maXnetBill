@@ -4,6 +4,8 @@ import dayjs from 'dayjs'
 import { getPayments, recordPayment, getInvoices, type Payment, type Invoice } from '../../api/billing'
 import Modal from '../../components/common/Modal.vue'
 import Pagination from '../../components/common/Pagination.vue'
+import SkeletonTable from '../../components/SkeletonTable.vue'
+import EmptyState from '../../components/EmptyState.vue'
 
 const payments = ref<Payment[]>([])
 const total = ref(0)
@@ -166,15 +168,18 @@ onMounted(fetchPayments)
           <tbody class="divide-y divide-gray-50">
             <!-- Loading -->
             <template v-if="loading">
-              <tr v-for="i in 5" :key="i">
-                <td v-for="j in 6" :key="j" class="px-4 py-3">
-                  <div class="h-4 bg-gray-100 rounded animate-pulse" />
-                </td>
-              </tr>
+              <tr><td :colspan="6" class="p-0"><SkeletonTable :cols="6" :rows="5" /></td></tr>
             </template>
             <!-- Empty -->
             <tr v-else-if="!payments.length">
-              <td colspan="6" class="px-4 py-12 text-center text-gray-400">No payments found</td>
+              <td colspan="6">
+                <EmptyState
+                  icon="receipt"
+                  title="No payments recorded"
+                  description="Payments will appear here when customers pay their invoices."
+                  :actions="[]"
+                />
+              </td>
             </tr>
             <!-- Rows -->
             <tr v-else v-for="pmt in payments" :key="pmt.id" class="hover:bg-gray-50/50 transition-colors">

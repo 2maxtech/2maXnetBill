@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getActiveSessions, getNetworkStatus, type PppoeSession, type NetworkStatus } from '../api/network'
+import SkeletonTable from '../components/SkeletonTable.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const sessions = ref<PppoeSession[]>([])
 const status = ref<NetworkStatus | null>(null)
@@ -123,18 +125,17 @@ onBeforeUnmount(() => {
             </tr>
           </thead>
           <tbody v-if="loading && sessions.length === 0">
-            <tr>
-              <td colspan="6" class="px-4 py-12 text-center text-gray-400">
-                <svg class="w-6 h-6 animate-spin mx-auto mb-2 text-primary" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Loading sessions...
-              </td>
-            </tr>
+            <tr><td :colspan="6" class="p-0"><SkeletonTable :cols="6" :rows="5" /></td></tr>
           </tbody>
           <tbody v-else-if="sessions.length === 0">
             <tr>
-              <td colspan="6" class="px-4 py-12 text-center text-gray-400">
-                <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 17v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 013.75-2.906z"/></svg>
-                No active sessions found.
+              <td colspan="6">
+                <EmptyState
+                  icon="wifi"
+                  title="No active sessions"
+                  description="Active PPPoE sessions from your connected routers will appear here."
+                  :actions="[{ label: 'Check Routers', to: '/routers', primary: true }]"
+                />
               </td>
             </tr>
           </tbody>

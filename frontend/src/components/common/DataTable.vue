@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SkeletonTable from '../SkeletonTable.vue'
+
 defineProps<{
   columns: Array<{
     key: string
@@ -39,16 +41,16 @@ defineEmits<{
         <tbody class="divide-y divide-gray-50">
           <!-- Loading -->
           <template v-if="loading">
-            <tr v-for="i in 5" :key="i">
-              <td v-for="col in columns" :key="col.key" class="px-4 py-3">
-                <div class="h-4 bg-gray-100 rounded animate-pulse" />
-              </td>
-            </tr>
+            <tr><td :colspan="columns.length" class="p-0"><SkeletonTable :cols="columns.length" :rows="5" /></td></tr>
           </template>
           <!-- Empty -->
           <tr v-else-if="!data?.length">
-            <td :colspan="columns.length" class="px-4 py-12 text-center text-gray-400">
-              {{ emptyText || 'No data' }}
+            <td :colspan="columns.length">
+              <slot name="empty">
+                <div class="px-4 py-12 text-center text-gray-400">
+                  {{ emptyText || 'No data' }}
+                </div>
+              </slot>
             </td>
           </tr>
           <!-- Rows -->

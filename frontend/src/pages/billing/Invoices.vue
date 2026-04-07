@@ -7,6 +7,8 @@ import StatusBadge from '../../components/common/StatusBadge.vue'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import Pagination from '../../components/common/Pagination.vue'
+import SkeletonTable from '../../components/SkeletonTable.vue'
+import EmptyState from '../../components/EmptyState.vue'
 
 const invoices = ref<Invoice[]>([])
 const total = ref(0)
@@ -246,15 +248,18 @@ onMounted(fetchInvoices)
           <tbody class="divide-y divide-gray-50">
             <!-- Loading -->
             <template v-if="loading">
-              <tr v-for="i in 5" :key="i">
-                <td v-for="j in 7" :key="j" class="px-4 py-3">
-                  <div class="h-4 bg-gray-100 rounded animate-pulse" />
-                </td>
-              </tr>
+              <tr><td :colspan="7" class="p-0"><SkeletonTable :cols="7" :rows="5" /></td></tr>
             </template>
             <!-- Empty -->
             <tr v-else-if="!invoices.length">
-              <td colspan="7" class="px-4 py-12 text-center text-gray-400">No invoices found</td>
+              <td colspan="7">
+                <EmptyState
+                  icon="receipt"
+                  title="No invoices yet"
+                  description="Invoices are generated automatically based on your billing cycle, or you can generate them manually."
+                  :actions="[{ label: 'Configure Billing', to: '/settings', primary: true }]"
+                />
+              </td>
             </tr>
             <!-- Rows -->
             <tr v-else v-for="inv in invoices" :key="inv.id" class="hover:bg-gray-50/50 transition-colors">

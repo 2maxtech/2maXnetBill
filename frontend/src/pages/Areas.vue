@@ -5,6 +5,8 @@ import Modal from '../components/common/Modal.vue'
 import ConfirmDialog from '../components/common/ConfirmDialog.vue'
 import { getAreas, createArea, updateArea, deleteArea, getRouters } from '../api/routers'
 import type { AreaType, RouterType } from '../api/routers'
+import SkeletonTable from '../components/SkeletonTable.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const areas = ref<AreaType[]>([])
 const routers = ref<RouterType[]>([])
@@ -139,14 +141,18 @@ onMounted(loadData)
           </thead>
           <tbody class="divide-y divide-gray-50">
             <template v-if="loading">
-              <tr v-for="i in 5" :key="i">
-                <td v-for="j in 5" :key="j" class="px-4 py-3">
-                  <div class="h-4 bg-gray-100 rounded animate-pulse" />
-                </td>
-              </tr>
+              <tr><td :colspan="5" class="p-0"><SkeletonTable :cols="5" :rows="5" /></td></tr>
             </template>
             <tr v-else-if="!areas.length">
-              <td colspan="5" class="px-4 py-12 text-center text-gray-400">No areas found</td>
+              <td colspan="5">
+                <EmptyState
+                  icon="map-pin"
+                  title="No areas defined"
+                  description="Organize your customers by geographic area or barangay."
+                  :actions="[{ label: 'Create Area', to: '#', primary: true }]"
+                  @action="openAdd"
+                />
+              </td>
             </tr>
             <tr v-else v-for="area in areas" :key="area.id" class="hover:bg-gray-50/50 transition-colors">
               <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ area.name }}</td>

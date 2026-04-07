@@ -8,6 +8,8 @@ import { getTickets, createTicket } from '../api/tickets'
 import { getCustomers } from '../api/customers'
 import type { TicketType } from '../api/tickets'
 import type { Customer } from '../api/customers'
+import SkeletonTable from '../components/SkeletonTable.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
 
@@ -185,14 +187,17 @@ onMounted(() => {
           </thead>
           <tbody class="divide-y divide-gray-50">
             <template v-if="loading">
-              <tr v-for="i in 5" :key="i">
-                <td v-for="j in 7" :key="j" class="px-4 py-3">
-                  <div class="h-4 bg-gray-100 rounded animate-pulse" />
-                </td>
-              </tr>
+              <tr><td :colspan="7" class="p-0"><SkeletonTable :cols="7" :rows="5" /></td></tr>
             </template>
             <tr v-else-if="!tickets.length">
-              <td colspan="7" class="px-4 py-12 text-center text-gray-400">No tickets found</td>
+              <td colspan="7">
+                <EmptyState
+                  icon="ticket"
+                  title="No support tickets"
+                  description="Customer support tickets will appear here when submitted through the portal."
+                  :actions="[]"
+                />
+              </td>
             </tr>
             <tr
               v-else
