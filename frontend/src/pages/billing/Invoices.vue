@@ -271,7 +271,7 @@ function formatCurrency(val: number | string) {
 }
 
 async function exportCsv() {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('access_token')
   const params = new URLSearchParams({ format: 'csv' })
   if (filterStatus.value) params.set('status', filterStatus.value)
   if (filterFromDate.value) params.set('from_date', filterFromDate.value)
