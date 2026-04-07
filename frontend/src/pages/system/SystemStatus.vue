@@ -119,7 +119,7 @@ onMounted(fetchMikrotikStatus)
               <div class="mt-3 space-y-1 text-sm text-gray-500">
                 <p>Uptime: <span class="text-gray-700">{{ mikrotik.uptime }}</span></p>
                 <p>CPU: <span class="text-gray-700">{{ mikrotik.cpu_load }}%</span></p>
-                <p>Memory: <span class="text-gray-700">{{ Math.round((mikrotik.total_memory - mikrotik.free_memory) / mikrotik.total_memory * 100) }}% used</span></p>
+                <p>Memory: <span class="text-gray-700">{{ mikrotik.total_memory ? Math.round((mikrotik.total_memory - mikrotik.free_memory) / mikrotik.total_memory * 100) : 0 }}% used</span></p>
               </div>
             </template>
           </div>
