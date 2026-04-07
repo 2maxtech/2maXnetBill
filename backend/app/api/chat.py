@@ -190,8 +190,9 @@ async def _classify_and_save(
             db.add(ticket)
             await db.flush()
 
-            # Email super admin
+            # Notify super admin (email + telegram)
             await _notify_super_admin(db, ticket)
+            await _notify_telegram(ticket)
             await db.commit()
 
         logger.info("Support ticket saved (%s) from %s", classification, tenant_email)
@@ -243,9 +244,6 @@ View in admin panel: {settings.BASE_URL}/system/support
             logger.info("Super admin notified about support ticket: %s", ticket.subject[:60])
     except Exception as e:
         logger.warning("Failed to notify super admin: %s", e)
-
-    # Telegram notification
-    await _notify_telegram(ticket)
 
 
 async def _notify_telegram(ticket) -> None:
