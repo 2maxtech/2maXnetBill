@@ -4,12 +4,16 @@ import dayjs from 'dayjs'
 import { getInvoices, generateInvoices, downloadInvoicePdf, deleteInvoice, type Invoice } from '../../api/billing'
 import { getCustomers, type Customer } from '../../api/customers'
 import { bulkMarkPaid, bulkSendNotification } from '../../api/bulk'
+import { useAuth } from '../../composables/useAuth'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import SkeletonTable from '../../components/SkeletonTable.vue'
 import EmptyState from '../../components/EmptyState.vue'
+
+const { user } = useAuth()
+const isDemo = computed(() => user.value?.is_demo === true)
 
 const invoices = ref<Invoice[]>([])
 const total = ref(0)
@@ -503,7 +507,7 @@ onMounted(fetchInvoices)
         leave-from-class="translate-y-0 opacity-100"
         leave-to-class="translate-y-full opacity-0"
       >
-        <div v-if="selectedIds.size > 0" class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-6 py-3 flex items-center justify-between ml-0 lg:ml-64">
+        <div v-if="!isDemo && selectedIds.size > 0" class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-6 py-3 flex items-center justify-between ml-0 lg:ml-64">
           <div class="flex items-center gap-3">
             <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ selectedIds.size }} selected</span>
             <button @click="clearSelection" class="text-xs text-gray-500 hover:text-gray-700 underline">Clear</button>

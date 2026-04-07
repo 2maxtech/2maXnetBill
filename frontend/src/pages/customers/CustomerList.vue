@@ -5,6 +5,7 @@ import { getCustomers, createCustomer, deleteCustomer, type Customer } from '../
 import { getPlans, type Plan } from '../../api/plans'
 import { getRouters, getAreas, importFromRouter, type RouterType, type AreaType } from '../../api/routers'
 import { bulkGenerateInvoices, bulkSendReminder, bulkChangeStatus } from '../../api/bulk'
+import { useAuth } from '../../composables/useAuth'
 import DataTable from '../../components/common/DataTable.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import Pagination from '../../components/common/Pagination.vue'
@@ -13,6 +14,8 @@ import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import EmptyState from '../../components/EmptyState.vue'
 
 const router = useRouter()
+const { user } = useAuth()
+const isDemo = computed(() => user.value?.is_demo === true)
 
 // List state
 const customers = ref<Customer[]>([])
@@ -994,7 +997,7 @@ onMounted(() => {
         leave-from-class="translate-y-0 opacity-100"
         leave-to-class="translate-y-full opacity-0"
       >
-        <div v-if="selectedIds.size > 0" class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-6 py-3 flex items-center justify-between ml-0 lg:ml-64">
+        <div v-if="!isDemo && selectedIds.size > 0" class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-6 py-3 flex items-center justify-between ml-0 lg:ml-64">
           <div class="flex items-center gap-3">
             <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ selectedIds.size }} selected</span>
             <button @click="clearSelection" class="text-xs text-gray-500 hover:text-gray-700 underline">Clear</button>
