@@ -111,7 +111,7 @@ async def _optional_user(request: Request, db: AsyncSession) -> User | None:
 async def _build_tenant_context(db: AsyncSession, owner_id: uuid.UUID) -> str:
     """Build tenant context string. Uses chat_context module if available, otherwise returns minimal info."""
     try:
-        from app.api.chat_context import build_tenant_context
+        from app.services.chat_context import build_tenant_context
         return await build_tenant_context(db, owner_id)
     except ImportError:
         # chat_context module not yet created -- return empty context
