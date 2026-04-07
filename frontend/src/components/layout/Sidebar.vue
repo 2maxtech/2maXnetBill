@@ -69,11 +69,11 @@ const ispMenu: MenuItem[] = [
   { path: '/routers', label: 'Routers', icon: 'server' },
   { path: '/areas', label: 'Areas', icon: 'map-pin' },
   { path: '/tickets', label: 'Tickets', icon: 'ticket' },
+  { path: '/settings', label: 'Settings', icon: 'settings' },
   {
     label: 'System', icon: 'settings', children: [
       { path: '/system/users', label: 'Staff Users' },
       { path: '/ipam', label: 'IPAM' },
-      { path: '/settings', label: 'Settings' },
       { path: '/audit-logs', label: 'Audit Logs' },
       { path: '/system/status', label: 'System Status' },
       { path: '/system/logs', label: 'Logs' },

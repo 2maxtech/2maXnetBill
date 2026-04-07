@@ -1094,7 +1094,20 @@ onMounted(() => {
     <div v-if="activeTab === 'smtp'" class="space-y-6">
       <!-- SMTP Settings Form -->
       <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">SMTP Configuration</h2>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Email Notifications (SMTP)</h2>
+        <p class="text-sm text-gray-500 mb-2">Send invoice emails, payment reminders, and overdue notices to your customers.</p>
+
+        <!-- Step-by-step setup guide -->
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-4">
+          <h3 class="text-sm font-semibold text-amber-800 mb-2">How to set up:</h3>
+          <ol class="text-xs text-amber-700 space-y-1.5 list-decimal list-inside">
+            <li>You need an email account that supports SMTP (Gmail, your own domain email, or any email provider)</li>
+            <li><strong>Gmail users:</strong> Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" class="underline font-medium">Google App Passwords</a>, generate an app password, and use it below (not your Gmail password)</li>
+            <li><strong>Custom domain:</strong> Use the SMTP settings from your hosting provider (e.g., mail.yourdomain.com, port 587)</li>
+            <li>Fill in the fields below and click <strong>Save</strong></li>
+            <li>Send a <strong>Test Email</strong> to yourself to verify it works</li>
+          </ol>
+        </div>
 
         <!-- Message -->
         <div
@@ -1223,7 +1236,22 @@ onMounted(() => {
     <div v-if="activeTab === 'sms'" class="space-y-6">
       <!-- SMS Settings Form -->
       <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">SMS Configuration</h2>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">SMS Notifications (Semaphore)</h2>
+        <p class="text-sm text-gray-500 mb-2">Send invoice notifications, payment reminders, and overdue notices to your customers via SMS.</p>
+
+        <!-- Step-by-step setup guide -->
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-4">
+          <h3 class="text-sm font-semibold text-amber-800 mb-2">How to set up (one-time):</h3>
+          <ol class="text-xs text-amber-700 space-y-1.5 list-decimal list-inside">
+            <li>Go to <a href="https://semaphore.co/signup" target="_blank" class="underline font-medium">semaphore.co/signup</a> and create a free account</li>
+            <li>After logging in, go to your <strong>Dashboard</strong> — your API Key is shown at the top</li>
+            <li>Copy the API Key and paste it in the <strong>API Key</strong> field below</li>
+            <li>Set the <strong>Provider</strong> to <code class="bg-amber-100 px-1 rounded">semaphore</code></li>
+            <li>Set a <strong>Sender Name</strong> (your ISP name, max 11 characters, e.g., "SampleISP")</li>
+            <li>Click <strong>Save</strong>, then send a <strong>Test SMS</strong> to your own number to verify</li>
+          </ol>
+          <p class="text-xs text-amber-600 mt-2">Semaphore offers free credits for testing. SMS costs ~₱0.35-0.50 per message depending on your plan.</p>
+        </div>
 
         <div
           v-if="smsMsg"
@@ -1247,9 +1275,10 @@ onMounted(() => {
             <input
               v-model="sms.sms_provider"
               type="text"
-              placeholder="twilio, semaphore, etc."
+              placeholder="semaphore"
               class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
             />
+            <p class="text-xs text-gray-400 mt-1">Currently supported: <code>semaphore</code>. Type it exactly as shown.</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">API Key</label>
@@ -1259,15 +1288,17 @@ onMounted(() => {
               placeholder="••••••••"
               class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
             />
+            <p class="text-xs text-gray-400 mt-1">Found on your Semaphore dashboard after logging in. It's a long string of letters and numbers.</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">Sender Name</label>
             <input
               v-model="sms.sms_sender_name"
               type="text"
-              placeholder="NetLedger"
+              placeholder="YourISP"
               class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
             />
+            <p class="text-xs text-gray-400 mt-1">Your ISP name that appears as the sender. Max 11 characters, no spaces. Example: SampleISP</p>
           </div>
           <div class="flex justify-end">
             <button
