@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
 from app.core.tenant import get_tenant_id
+from app.models.app_setting import AppSetting
 from app.models.customer import Customer, CustomerStatus
 from app.models.plan import Plan
 from app.models.router import Router
@@ -354,6 +355,13 @@ async def import_from_router(
         existing_plans[pname] = plan
         plans_created += 1
 
+    # Get tenant's default due day
+    due_day_result = await db.execute(
+        select(AppSetting).where(AppSetting.owner_id == tid, AppSetting.key == "billing_default_due_day")
+    )
+    due_day_setting = due_day_result.scalar_one_or_none()
+    default_due_day = int(due_day_setting.value) if due_day_setting else 15
+
     for secret in mt_secrets:
         secret_id = secret.get(".id", "")
         username = secret.get("name", "")
@@ -377,6 +385,7 @@ async def import_from_router(
             pppoe_password=secret.get("password", "imported"),
             status=CustomerStatus.disconnected if secret.get("disabled") == "true" else CustomerStatus.active,
             plan_id=plan.id,
+            billing_due_day=default_due_day,
             mikrotik_secret_id=secret_id,
             mac_address=secret.get("caller-id") or None,
             router_id=router_id,
