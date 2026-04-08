@@ -461,25 +461,53 @@ async def reconnect_customer(
         raise HTTPException(status_code=404, detail="Customer not found")
 
     response = {"detail": "No MikroTik secret linked"}
-    if customer.mikrotik_secret_id:
-        try:
-            client, _ = await get_client_for_customer(db, customer)
-            if client:
-                await client.enable_secret(customer.mikrotik_secret_id)
+    try:
+        client, _ = await get_client_for_customer(db, customer)
+        if client:
+            if customer.mikrotik_secret_id:
+                # Try to enable existing secret
+                secret = await client.get_secret(customer.mikrotik_secret_id)
+                if secret:
+                    await client.enable_secret(customer.mikrotik_secret_id)
+                    if customer.plan:
+                        profile_name = customer.plan.name
+                        rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
+                        await client.ensure_profile(
+                            profile_name, rate_limit,
+                            local_address=customer.plan.local_address,
+                            remote_address=customer.plan.remote_address,
+                            dns_server=customer.plan.dns_server,
+                            parent_queue=customer.plan.parent_queue,
+                        )
+                        await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
+                    response = {"detail": "PPPoE secret enabled + plan profile restored"}
+                else:
+                    # Secret was deleted from MikroTik — recreate it
+                    customer.mikrotik_secret_id = None
+
+            if not customer.mikrotik_secret_id:
+                # No secret — create a new one
+                profile = "default"
                 if customer.plan:
                     profile_name = customer.plan.name
                     rate_limit = f"{customer.plan.upload_mbps}M/{customer.plan.download_mbps}M"
-                    await client.ensure_profile(
+                    profile = await client.ensure_profile(
                         profile_name, rate_limit,
                         local_address=customer.plan.local_address,
                         remote_address=customer.plan.remote_address,
                         dns_server=customer.plan.dns_server,
                         parent_queue=customer.plan.parent_queue,
                     )
-                    await client.update_secret(customer.mikrotik_secret_id, {"profile": profile_name})
-                response = {"detail": "PPPoE secret enabled + plan profile restored"}
-        except Exception as e:
-            response = {"detail": f"MikroTik error: {e}"}
+                secret_id = await client.create_secret(
+                    name=customer.pppoe_username,
+                    password=customer.pppoe_password,
+                    profile=profile,
+                    caller_id=customer.mac_address,
+                )
+                customer.mikrotik_secret_id = secret_id
+                response = {"detail": f"PPPoE secret recreated + enabled (id={secret_id})"}
+    except Exception as e:
+        response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to active")
 
     # Remove NAT redirect on reconnect
