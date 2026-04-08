@@ -186,7 +186,7 @@ function closeChat() {
     <!-- Floating Button -->
     <button
       @click="toggleChat"
-      class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30 hover:scale-110 hover:shadow-xl hover:shadow-primary/40 transition-all duration-200 flex items-center justify-center"
+      class="fixed bottom-24 right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30 hover:scale-110 hover:shadow-xl hover:shadow-primary/40 transition-all duration-200 flex items-center justify-center"
       aria-label="Open chat"
     >
       <!-- Chat bubble icon when closed, X icon when open -->
@@ -209,7 +209,7 @@ function closeChat() {
     >
       <div
         v-if="isOpen"
-        class="fixed bottom-[5.5rem] right-6 z-50 w-96 max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+        class="fixed bottom-[10.5rem] right-6 z-50 w-96 max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
         style="height: min(500px, 70vh)"
       >
         <!-- Header -->

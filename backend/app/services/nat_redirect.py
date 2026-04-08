@@ -5,7 +5,9 @@ customers' HTTP traffic to a payment notification page.
 """
 
 import logging
+import socket
 import uuid
+from urllib.parse import urlparse
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,22 +21,57 @@ logger = logging.getLogger(__name__)
 
 COMMENT_PREFIX = "netledger-redirect-"
 
+# Cache resolved server IP (only changes on restart)
+_resolved_server_ip: str | None = None
+
+
+def _resolve_server_ip() -> str:
+    """Resolve the server IP from BASE_URL. Cached after first call."""
+    global _resolved_server_ip
+    if _resolved_server_ip:
+        return _resolved_server_ip
+
+    parsed = urlparse(settings.BASE_URL)
+    host = parsed.hostname or "localhost"
+
+    # If it's already an IP, use it directly
+    try:
+        socket.inet_aton(host)
+        _resolved_server_ip = host
+        return host
+    except socket.error:
+        pass
+
+    # Resolve hostname to IP
+    try:
+        ip = socket.gethostbyname(host)
+        _resolved_server_ip = ip
+        logger.info("Resolved server IP for NAT redirect: %s → %s", host, ip)
+        return ip
+    except socket.gaierror:
+        logger.warning("Failed to resolve %s for NAT redirect, using as-is", host)
+        _resolved_server_ip = host
+        return host
+
 
 def _make_comment(customer_id: uuid.UUID) -> str:
     """Build the NAT rule comment for a customer."""
     return f"{COMMENT_PREFIX}{customer_id}"
 
 
-async def _get_tenant_redirect_settings(db: AsyncSession, owner_id: uuid.UUID) -> dict:
-    """Load NAT redirect settings for a tenant."""
-    keys = ["nat_redirect_enabled", "nat_redirect_ip", "portal_slug"]
+async def _is_redirect_enabled(db: AsyncSession, owner_id: uuid.UUID) -> tuple[bool, str]:
+    """Check if NAT redirect is enabled for a tenant. Returns (enabled, portal_slug)."""
+    keys = ["nat_redirect_enabled", "portal_slug"]
     result = await db.execute(
         select(AppSetting).where(
             AppSetting.key.in_(keys),
             AppSetting.owner_id == owner_id,
         )
     )
-    return {s.key: s.value for s in result.scalars().all()}
+    s = {row.key: row.value for row in result.scalars().all()}
+    enabled = s.get("nat_redirect_enabled") == "true"
+    slug = s.get("portal_slug", "")
+    return enabled, slug
 
 
 async def add_redirect_for_customer(db: AsyncSession, customer: Customer) -> bool:
@@ -42,21 +79,16 @@ async def add_redirect_for_customer(db: AsyncSession, customer: Customer) -> boo
 
     Returns True if redirect was created, False if skipped or failed.
     """
-    tenant_settings = await _get_tenant_redirect_settings(db, customer.owner_id)
+    enabled, slug = await _is_redirect_enabled(db, customer.owner_id)
 
-    # Check if feature is enabled for this tenant
-    if tenant_settings.get("nat_redirect_enabled") != "true":
+    if not enabled:
         return False
 
-    redirect_ip = tenant_settings.get("nat_redirect_ip", "")
-    if not redirect_ip:
-        logger.warning("NAT redirect enabled but no redirect IP for tenant %s", customer.owner_id)
-        return False
-
-    slug = tenant_settings.get("portal_slug", "")
     if not slug:
         logger.warning("NAT redirect: no portal_slug for tenant %s", customer.owner_id)
         return False
+
+    redirect_ip = _resolve_server_ip()
 
     try:
         client, _ = await get_client_for_customer(db, customer)

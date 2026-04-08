@@ -105,7 +105,6 @@ const billing = ref<BillingSettingsType>({
   billing_send_invoice_email: 'true',
   billing_send_invoice_sms: 'true',
   nat_redirect_enabled: 'false',
-  nat_redirect_ip: '',
 })
 const billingLoading = ref(false)
 const billingSaving = ref(false)
@@ -915,15 +914,10 @@ onMounted(() => {
             <span class="text-sm text-gray-700"><strong>Enable</strong> browser payment notification for overdue customers</span>
           </label>
 
-          <div v-if="billing.nat_redirect_enabled === 'true'">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Notification Server IP</label>
-            <input v-model="billing.nat_redirect_ip" type="text" placeholder="e.g., 157.180.72.253" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
-            <p class="text-xs text-gray-400 mt-1">The IP address your MikroTik router will redirect customer traffic to. Use the server IP that customers can reach (your public IP or VPN gateway). This server must host the NetLedger payment notification page.</p>
-          </div>
-
           <div v-if="billing.nat_redirect_enabled === 'true' && branding.portal_slug" class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
             <p class="text-xs text-gray-500 mb-1">Customers will be redirected to:</p>
             <code class="text-xs text-primary font-medium">{{ portalUrl.split('/portal/')[0] }}/overdue/{{ branding.portal_slug }}</code>
+            <p class="text-xs text-gray-400 mt-1.5">The server IP is auto-detected from your NetLedger server address. No manual configuration needed.</p>
           </div>
         </div>
       </div>
