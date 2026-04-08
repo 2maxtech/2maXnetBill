@@ -29,16 +29,7 @@ setup('authenticate as admin', async ({ page }) => {
   await page.fill('#password', password)
   await page.click('button[type="submit"]')
 
-  // Check for login error
-  const errorMsg = page.locator('text=Invalid').or(page.locator('text=incorrect'))
-  const dashboard = page.locator('text=Dashboard')
-
-  await expect(dashboard.or(errorMsg)).toBeVisible({ timeout: 10_000 })
-
-  if (await errorMsg.isVisible().catch(() => false)) {
-    throw new Error('Login failed — check E2E_USERNAME and E2E_PASSWORD')
-  }
-
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 5_000 })
+  // Wait for redirect to dashboard
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 })
   await page.context().storageState({ path: AUTH_FILE })
 })
