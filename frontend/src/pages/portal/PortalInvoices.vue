@@ -28,8 +28,15 @@ async function fetchInvoices() {
   }
 }
 
-function handlePrint(inv: PortalInvoice) {
-  window.open(`/api/v1/portal/invoices/${inv.id}/pdf`, '_blank')
+async function handlePrint(inv: PortalInvoice) {
+  try {
+    const { data } = await downloadPortalInvoicePdf(inv.id)
+    const url = window.URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+    const w = window.open(url, '_blank')
+    if (w) w.onafterprint = () => window.URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Print failed', e)
+  }
 }
 
 async function handleDownload(inv: PortalInvoice) {

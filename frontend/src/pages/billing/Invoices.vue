@@ -265,8 +265,15 @@ async function handleDownloadPdf(inv: Invoice) {
   }
 }
 
-function handlePrint(inv: Invoice) {
-  window.open(`/api/v1/billing/invoices/${inv.id}/pdf`, '_blank')
+async function handlePrint(inv: Invoice) {
+  try {
+    const { data } = await downloadInvoicePdf(inv.id)
+    const url = window.URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+    const w = window.open(url, '_blank')
+    if (w) w.onafterprint = () => window.URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Print failed', e)
+  }
 }
 
 function openDeleteConfirm(inv: Invoice) {
