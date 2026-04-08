@@ -137,21 +137,37 @@ async function activateVpn() {
 // Step 2: Import
 // ========================
 
-async function loadImportPreview() {
+async function loadImportPreview(retries = 3) {
   if (!routerCreated.value) return
   error.value = ''
   loading.value = true
-  try {
-    const { data } = await importPreview(routerCreated.value.id)
-    previewData.value = data
-    for (const p of data.plans) {
-      planPrices[p.name] = p.current_price || 0
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const { data } = await importPreview(routerCreated.value.id)
+      previewData.value = data
+      for (const p of data.plans) {
+        planPrices[p.name] = p.current_price || 0
+      }
+      loading.value = false
+      return
+    } catch (e: any) {
+      if (attempt < retries - 1) {
+        // VPN tunnel may need time to establish — wait and retry
+        await new Promise(r => setTimeout(r, 3000))
+      } else {
+        error.value = e.response?.data?.detail || 'Could not reach router. The VPN tunnel may still be connecting — try clicking "Retry" below.'
+      }
     }
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Failed to load import preview'
-  } finally {
-    loading.value = false
   }
+  loading.value = false
+}
+
+const importRetrying = ref(false)
+async function retryImport() {
+  importRetrying.value = true
+  error.value = ''
+  await loadImportPreview(2)
+  importRetrying.value = false
 }
 
 async function doImport() {
@@ -410,7 +426,14 @@ onMounted(async () => {
         <div v-if="routerConnected && !importResult">
           <!-- Loading preview -->
           <div v-if="loading && !previewData" class="text-center py-8 text-gray-400">
-            Loading customers from router...
+            Loading customers from router... (this may take a moment if the VPN just connected)
+          </div>
+
+          <!-- Retry button on error -->
+          <div v-if="error && !previewData && !loading" class="text-center py-4">
+            <button @click="retryImport" :disabled="importRetrying" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold transition-colors disabled:opacity-50">
+              {{ importRetrying ? 'Retrying...' : 'Retry Connection' }}
+            </button>
           </div>
 
           <!-- Preview table -->

@@ -82,7 +82,8 @@ async def vpn_setup(
         f'endpoint-port={endpoint.split(":")[1]} '
         f'allowed-address=10.10.10.0/24 '
         f'persistent-keepalive=25\n'
-        f'/ip/address/add address={tunnel_ip}/24 interface=wg-netledger'
+        f'/ip/address/add address={tunnel_ip}/24 interface=wg-netledger\n'
+        f':put [/interface/wireguard/get wg-netledger public-key]'
     )
 
     return {
