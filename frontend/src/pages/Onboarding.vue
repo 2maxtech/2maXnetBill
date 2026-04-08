@@ -267,6 +267,13 @@ function nextStep() {
   }
 }
 
+function prevStep() {
+  if (step.value > 1) {
+    error.value = ''
+    step.value--
+  }
+}
+
 function skipStep() {
   error.value = ''
   // Save defaults when skipping billing
@@ -535,7 +542,13 @@ onMounted(async () => {
 
         <!-- Next / Skip -->
         <div class="mt-6 flex items-center justify-between">
-          <button @click="skipStep" class="text-sm text-gray-500 hover:text-gray-300">I'll do this later</button>
+          <div class="flex items-center gap-4">
+            <button @click="prevStep" class="text-sm text-gray-400 hover:text-white flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+              Back
+            </button>
+            <button @click="skipStep" class="text-sm text-gray-500 hover:text-gray-300">I'll do this later</button>
+          </div>
           <button v-if="importResult || manualPlanCreated" @click="nextStep" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold transition-colors">
             Continue
           </button>
@@ -565,6 +578,10 @@ onMounted(async () => {
             <p class="text-xs text-gray-500 mt-1">Customer will be fully disconnected after this many days past due</p>
           </div>
           <div class="flex gap-3">
+            <button @click="prevStep" class="px-4 py-3 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 font-medium transition-colors flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+              Back
+            </button>
             <button @click="saveBilling" :disabled="loading" class="flex-1 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold transition-colors disabled:opacity-50">
               {{ loading ? 'Saving...' : 'Save Settings' }}
             </button>
@@ -618,9 +635,15 @@ onMounted(async () => {
           </div>
         </div>
 
-        <button @click="finish" :disabled="loading" class="mt-6 w-full py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-lg transition-colors disabled:opacity-50">
-          Go to Dashboard
-        </button>
+        <div class="mt-6 flex gap-3">
+          <button @click="prevStep" class="px-5 py-3 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 font-medium transition-colors flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Back
+          </button>
+          <button @click="finish" :disabled="loading" class="flex-1 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-lg transition-colors disabled:opacity-50">
+            Go to Dashboard
+          </button>
+        </div>
       </div>
     </div>
   </div>
