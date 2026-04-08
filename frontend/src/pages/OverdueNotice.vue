@@ -164,48 +164,78 @@ async function lookupPortal() {
             </div>
             <h2 class="text-xl font-bold text-gray-900 mb-2">Internet Service Limited</h2>
             <p class="text-gray-600 text-sm leading-relaxed">
-              Your internet service has been restricted due to an unpaid balance.
-              Please pay your outstanding invoice to restore full speed.
+              <template v-if="tenant.customer_name">Hi <strong>{{ tenant.customer_name }}</strong>, your</template>
+              <template v-else>Your</template>
+              internet service has been restricted due to an unpaid balance.
+              Pay now to restore full speed instantly.
             </p>
           </div>
 
-          <!-- Steps -->
-          <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 mb-6 space-y-3">
-            <h3 class="text-sm font-semibold text-gray-700 mb-2">How to restore your service:</h3>
-            <div class="flex items-start gap-3">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">1</span>
-              <p class="text-sm text-gray-600">Log in to your Customer Portal using your PPPoE username and password</p>
+          <!-- Unpaid invoices with Pay Now -->
+          <template v-if="tenant.invoices && tenant.invoices.length > 0">
+            <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 mb-4">
+              <h3 class="text-sm font-semibold text-gray-700 mb-3">Unpaid Balance</h3>
+              <div class="space-y-3">
+                <div v-for="(inv, i) in tenant.invoices" :key="i" class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">{{'₱'}}{{ inv.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</p>
+                    <p class="text-xs text-gray-500">Due: {{ inv.due_date || 'N/A' }}</p>
+                  </div>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                    :class="inv.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'">
+                    {{ inv.status }}
+                  </span>
+                </div>
+              </div>
+              <div v-if="tenant.total_due" class="border-t border-gray-200 mt-3 pt-3 flex justify-between items-center">
+                <span class="text-sm font-semibold text-gray-700">Total Due</span>
+                <span class="text-lg font-bold text-gray-900">{{'₱'}}{{ tenant.total_due.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</span>
+              </div>
             </div>
-            <div class="flex items-start gap-3">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">2</span>
-              <p class="text-sm text-gray-600">View your unpaid invoices and click "Pay Now"</p>
-            </div>
-            <div class="flex items-start gap-3">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">3</span>
-              <p class="text-sm text-gray-600">Pay via GCash, Maya, or Visa/Mastercard</p>
-            </div>
-            <div class="flex items-start gap-3">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
-              </span>
-              <p class="text-sm text-gray-600">Your full speed will be restored automatically after payment</p>
-            </div>
-          </div>
 
-          <!-- CTA button -->
-          <a
-            :href="tenant.portal_url"
-            class="block w-full py-3.5 px-4 rounded-xl text-white font-semibold text-base text-center transition-colors"
-            :style="{ backgroundColor: tenant.primary_color || '#e8700a' }"
-          >
-            Go to Customer Portal
-          </a>
+            <!-- Pay Now button (first invoice with payment URL) -->
+            <a
+              v-if="tenant.invoices.find((i: any) => i.payment_url)"
+              :href="tenant.invoices.find((i: any) => i.payment_url)?.payment_url"
+              class="block w-full py-3.5 px-4 rounded-xl text-white font-semibold text-base text-center transition-colors mb-3"
+              :style="{ backgroundColor: tenant.primary_color || '#e8700a' }"
+            >
+              Pay Now — GCash, Maya, or Card
+            </a>
+
+            <!-- Portal link as secondary -->
+            <a
+              :href="tenant.portal_url"
+              class="block w-full py-3 px-4 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm text-center hover:bg-gray-50 transition-colors"
+            >
+              Or log in to Customer Portal
+            </a>
+          </template>
+
+          <!-- No invoices found (slug mode or no unpaid invoices) -->
+          <template v-else>
+            <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 mb-6">
+              <p class="text-sm text-gray-600 text-center">Log in to your Customer Portal to view your balance and pay online.</p>
+            </div>
+            <a
+              :href="tenant.portal_url"
+              class="block w-full py-3.5 px-4 rounded-xl text-white font-semibold text-base text-center transition-colors"
+              :style="{ backgroundColor: tenant.primary_color || '#e8700a' }"
+            >
+              Go to Customer Portal
+            </a>
+          </template>
 
           <!-- Payment methods -->
           <div class="mt-4 flex items-center justify-center gap-3 text-xs text-gray-400">
             <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border border-gray-200 text-gray-500 font-medium">GCash</span>
             <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border border-gray-200 text-gray-500 font-medium">Maya</span>
             <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border border-gray-200 text-gray-500 font-medium">Visa / MC</span>
+          </div>
+
+          <!-- Restore info -->
+          <div class="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-center">
+            <p class="text-xs text-green-700">Your full speed will be restored <strong>automatically</strong> after payment is confirmed.</p>
           </div>
         </div>
       </div>

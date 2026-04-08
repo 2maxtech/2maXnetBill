@@ -8,13 +8,14 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.app_setting import AppSetting
 from app.models.customer import Customer
+from app.models.invoice import Invoice, InvoiceStatus
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,30 @@ async def lookup_portal(body: LookupRequest, db: AsyncSession = Depends(get_db))
 
     slug = slug_setting.value
     data = await _get_settings_by_slug(db, slug)
+
+    # Include unpaid invoices with payment links
+    inv_result = await db.execute(
+        select(Invoice).where(
+            and_(
+                Invoice.customer_id == customer.id,
+                Invoice.status.in_([InvoiceStatus.pending, InvoiceStatus.overdue]),
+            )
+        ).order_by(Invoice.due_date.desc())
+    )
+    invoices = []
+    for inv in inv_result.scalars().all():
+        entry = {
+            "amount": float(inv.amount),
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "status": inv.status.value,
+        }
+        if inv.payment_token:
+            entry["payment_url"] = f"{settings.BASE_URL}/pay/{inv.payment_token}"
+        invoices.append(entry)
+
+    data["customer_name"] = customer.full_name
+    data["invoices"] = invoices
+    data["total_due"] = sum(i["amount"] for i in invoices)
     return data
 
 
