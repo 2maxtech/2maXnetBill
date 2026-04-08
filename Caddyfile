@@ -1,0 +1,15 @@
+netl.2max.tech {
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:80
+    }
+}
+
+# Catch-all for NAT-redirected overdue customer traffic
+# Any HTTP request with a non-matching Host header gets redirected
+# to the overdue payment notice page
+:80 {
+    redir * https://netl.2max.tech/overdue 302
+}
