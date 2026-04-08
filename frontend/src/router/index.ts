@@ -78,6 +78,10 @@ const router = createRouter({
       ],
     },
     {
+      path: '/onboarding',
+      component: () => import('../pages/Onboarding.vue'),
+    },
+    {
       path: '/dashboard',
       component: () => import('../components/layout/AppLayout.vue'),
       children: [

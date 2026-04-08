@@ -48,6 +48,15 @@ async function handleLogin() {
   loading.value = true
   try {
     await login(username.value, password.value)
+    // Check if onboarding is needed
+    try {
+      const { default: api } = await import('../api/client')
+      const { data: onboarding } = await api.get('/onboarding/status')
+      if (!onboarding.dismissed && onboarding.completed < onboarding.total) {
+        router.push('/onboarding')
+        return
+      }
+    } catch { /* fallthrough to dashboard */ }
     router.push('/dashboard')
   } catch (e: any) {
     error.value =
