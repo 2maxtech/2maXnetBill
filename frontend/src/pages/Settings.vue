@@ -104,6 +104,8 @@ const billing = ref<BillingSettingsType>({
   billing_auto_generate: 'true',
   billing_send_invoice_email: 'true',
   billing_send_invoice_sms: 'true',
+  nat_redirect_enabled: 'false',
+  nat_redirect_ip: '',
 })
 const billingLoading = ref(false)
 const billingSaving = ref(false)
@@ -888,6 +890,41 @@ onMounted(() => {
             <input type="checkbox" :checked="billing.billing_send_invoice_sms === 'true'" @change="billing.billing_send_invoice_sms = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
             <span class="text-sm text-gray-700">Send invoice via <strong>SMS</strong> when generated (requires SMS configured)</span>
           </label>
+        </div>
+      </div>
+
+      <!-- Browser Notification (NAT Redirect) -->
+      <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Browser Payment Notification</h2>
+        <p class="text-sm text-gray-500 mb-4">When enabled, overdue customers' web browsers will be redirected to a payment notice page when they try to browse. This uses MikroTik firewall NAT rules to intercept HTTP traffic.</p>
+
+        <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 mb-4">
+          <h3 class="text-sm font-semibold text-blue-800 mb-2">How it works:</h3>
+          <ol class="text-xs text-blue-700 space-y-1.5 list-decimal list-inside">
+            <li>When a customer is throttled for non-payment, a NAT redirect rule is added to your MikroTik router</li>
+            <li>The rule redirects all HTTP (port 80) traffic from the customer to the notification page</li>
+            <li>The customer sees "Your service is limited" with a link to pay via the customer portal</li>
+            <li>After payment, the NAT rule is automatically removed and full speed is restored</li>
+          </ol>
+          <p class="text-xs text-blue-600 mt-2"><strong>Note:</strong> Only works on HTTP (port 80). HTTPS sites won't be redirected, but most devices' captive portal detection uses HTTP and will show a popup automatically.</p>
+        </div>
+
+        <div class="space-y-4">
+          <label class="flex items-center gap-3">
+            <input type="checkbox" :checked="billing.nat_redirect_enabled === 'true'" @change="billing.nat_redirect_enabled = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
+            <span class="text-sm text-gray-700"><strong>Enable</strong> browser payment notification for overdue customers</span>
+          </label>
+
+          <div v-if="billing.nat_redirect_enabled === 'true'">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Notification Server IP</label>
+            <input v-model="billing.nat_redirect_ip" type="text" placeholder="e.g., 157.180.72.253" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+            <p class="text-xs text-gray-400 mt-1">The IP address your MikroTik router will redirect customer traffic to. Use the server IP that customers can reach (your public IP or VPN gateway). This server must host the NetLedger payment notification page.</p>
+          </div>
+
+          <div v-if="billing.nat_redirect_enabled === 'true' && branding.portal_slug" class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+            <p class="text-xs text-gray-500 mb-1">Customers will be redirected to:</p>
+            <code class="text-xs text-primary font-medium">{{ portalUrl.split('/portal/')[0] }}/overdue/{{ branding.portal_slug }}</code>
+          </div>
         </div>
       </div>
 

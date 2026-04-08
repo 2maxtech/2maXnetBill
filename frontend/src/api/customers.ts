@@ -74,3 +74,16 @@ export interface HistoryEvent {
 export function getCustomerHistory(id: string) {
   return api.get<{ events: HistoryEvent[]; total: number }>(`/customers/${id}/history`)
 }
+
+// NAT redirect (browser notification)
+export function getRedirectStatus(id: string) {
+  return api.get<{ active: boolean; rule: any }>(`/customers/${id}/redirect`)
+}
+
+export function addRedirect(id: string) {
+  return api.post(`/customers/${id}/redirect`)
+}
+
+export function removeRedirect(id: string) {
+  return api.delete(`/customers/${id}/redirect`)
+}

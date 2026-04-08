@@ -368,6 +368,13 @@ async def delete_customer(
 
     username = customer.pppoe_username
 
+    # Remove NAT redirect if any
+    try:
+        from app.services.nat_redirect import remove_redirect_for_customer
+        await remove_redirect_for_customer(db, customer)
+    except Exception:
+        pass
+
     # Remove PPPoE secret from MikroTik
     if customer.mikrotik_secret_id:
         try:
@@ -417,6 +424,13 @@ async def disconnect_customer(
         except Exception as e:
             response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to disconnected")
+
+    # Remove NAT redirect (disconnected = no session = no traffic)
+    try:
+        from app.services.nat_redirect import remove_redirect_for_customer
+        await remove_redirect_for_customer(db, customer)
+    except Exception as e:
+        logger.warning(f"NAT redirect removal failed for {customer.id}: {e}")
 
     customer.status = CustomerStatus.disconnected
     log = DisconnectLog(
@@ -468,6 +482,13 @@ async def reconnect_customer(
             response = {"detail": f"MikroTik error: {e}"}
     logger.info(f"Customer {customer.id} status changed to active")
 
+    # Remove NAT redirect on reconnect
+    try:
+        from app.services.nat_redirect import remove_redirect_for_customer
+        await remove_redirect_for_customer(db, customer)
+    except Exception as e:
+        logger.warning(f"NAT redirect removal failed for {customer.id}: {e}")
+
     customer.status = CustomerStatus.active
     log = DisconnectLog(
         customer_id=customer.id,
@@ -509,6 +530,13 @@ async def throttle_customer(
                 response = {"detail": f"Profile changed to {throttle_name}"}
         except Exception as e:
             response = {"detail": f"MikroTik error: {e}"}
+    # Add NAT redirect so customer's browser shows payment notice
+    try:
+        from app.services.nat_redirect import add_redirect_for_customer
+        await add_redirect_for_customer(db, customer)
+    except Exception as e:
+        logger.warning(f"NAT redirect add failed for {customer.id}: {e}")
+
     logger.info(f"Customer {customer.id} status changed to suspended")
 
     customer.status = CustomerStatus.suspended
@@ -578,6 +606,71 @@ async def change_plan(
 
     await log_action(db, current_user.id, "customer.change_plan", "customer", customer.id, details=f"new_plan={new_plan.name}", owner_id=tid)
     return {"status": "plan_changed", "new_plan": new_plan.name, "mikrotik": mt_result}
+
+
+@router.get("/{customer_id}/redirect", status_code=200)
+async def get_redirect_status(
+    customer_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Check if a NAT redirect rule exists for a customer."""
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
+    customer = result.scalar_one_or_none()
+    if customer is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    from app.services.nat_redirect import check_redirect_for_customer
+    rule = await check_redirect_for_customer(db, customer)
+    return {"active": rule is not None, "rule": rule}
+
+
+@router.post("/{customer_id}/redirect", status_code=200)
+async def add_redirect(
+    customer_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Manually add a NAT redirect for a customer's browser notification."""
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
+    customer = result.scalar_one_or_none()
+    if customer is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    from app.services.nat_redirect import add_redirect_for_customer
+    success = await add_redirect_for_customer(db, customer)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to add redirect. Check that NAT redirect is enabled in Settings and customer has an active session.")
+
+    await log_action(db, current_user.id, "customer.redirect_add", "customer", customer.id, owner_id=tid)
+    await db.flush()
+    return {"status": "redirect_added"}
+
+
+@router.delete("/{customer_id}/redirect", status_code=200)
+async def remove_redirect(
+    customer_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+):
+    """Manually remove NAT redirect for a customer."""
+    tid = uuid.UUID(tenant_id)
+    result = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.owner_id == tid))
+    customer = result.scalar_one_or_none()
+    if customer is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    from app.services.nat_redirect import remove_redirect_for_customer
+    await remove_redirect_for_customer(db, customer)
+
+    await log_action(db, current_user.id, "customer.redirect_remove", "customer", customer.id, owner_id=tid)
+    await db.flush()
+    return {"status": "redirect_removed"}
 
 
 @router.get("/{customer_id}/history")

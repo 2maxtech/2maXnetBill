@@ -246,6 +246,13 @@ async def record_payment(
                     else:
                         logger.warning(f"Customer {customer.id} has no mikrotik_secret_id, skipping")
 
+                    # Remove NAT redirect (browser notification no longer needed)
+                    try:
+                        from app.services.nat_redirect import remove_redirect_for_customer
+                        await remove_redirect_for_customer(db, customer)
+                    except Exception as e:
+                        logger.warning(f"NAT redirect removal failed for {customer.id}: {e}")
+
                 customer.status = CustomerStatus.active
                 log = DisconnectLog(
                     customer_id=customer.id,
@@ -351,6 +358,13 @@ async def process_graduated_disconnect(db: AsyncSession, skip_network: bool = Fa
                             logger.error(f"MikroTik throttle failed for {customer.id}: {e}")
                     else:
                         logger.warning(f"Customer {customer.id} has no mikrotik_secret_id, skipping")
+
+                    # Add NAT redirect so customer's browser shows payment notice
+                    try:
+                        from app.services.nat_redirect import add_redirect_for_customer
+                        await add_redirect_for_customer(db, customer)
+                    except Exception as e:
+                        logger.warning(f"NAT redirect add failed for {customer.id}: {e}")
 
                 customer.status = CustomerStatus.suspended
                 db.add(DisconnectLog(

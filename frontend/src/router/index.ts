@@ -30,6 +30,14 @@ const router = createRouter({
       component: () => import('../pages/Pay.vue'),
     },
     {
+      path: '/overdue',
+      component: () => import('../pages/OverdueNotice.vue'),
+    },
+    {
+      path: '/overdue/:slug',
+      component: () => import('../pages/OverdueNotice.vue'),
+    },
+    {
       path: '/setup',
       component: () => import('../pages/Setup.vue'),
     },
@@ -103,7 +111,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const publicPaths = ['/', '/login', '/register', '/self-hosted', '/setup', '/setup-guide']
-  const isPaymentPage = to.path.startsWith('/pay/')
+  const isPaymentPage = to.path.startsWith('/pay/') || to.path === '/overdue' || to.path.startsWith('/overdue/')
   const isPortal = to.path.startsWith('/portal')
   const isPortalLogin = to.matched.some(r => r.path === '/portal/:slug/login') || (isOnPremise && to.path === '/portal/login')
   if (publicPaths.includes(to.path) || isPaymentPage || isPortalLogin) {

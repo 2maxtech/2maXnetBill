@@ -361,6 +361,13 @@ async def paymongo_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     except Exception as e:
                         logger.error(f"MikroTik reconnect via webhook failed for {customer.id}: {e}")
 
+                # Remove NAT redirect (browser notification no longer needed)
+                try:
+                    from app.services.nat_redirect import remove_redirect_for_customer
+                    await remove_redirect_for_customer(db, customer)
+                except Exception as e:
+                    logger.warning(f"NAT redirect removal via webhook failed for {customer.id}: {e}")
+
                 customer.status = CustomerStatus.active
                 db.add(DisconnectLog(
                     customer_id=customer.id,

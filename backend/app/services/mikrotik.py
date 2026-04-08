@@ -295,6 +295,14 @@ class MikroTikClient:
         resp = await self._request("GET", "ppp/active")
         return resp.json()
 
+    async def get_active_session_ip(self, username: str) -> str | None:
+        """Return the current IP address of an active PPPoE session, or None."""
+        sessions = await self.get_active_sessions()
+        for s in sessions:
+            if s.get("name") == username:
+                return s.get("address")
+        return None
+
     async def kick_session(self, username: str) -> bool:
         """Remove active PPP session by username, forcing reconnect with new profile."""
         sessions = await self.get_active_sessions()
@@ -304,6 +312,69 @@ class MikroTikClient:
                 logger.info("Kicked active session for '%s'", username)
                 return True
         return False
+
+    # --- Firewall NAT (redirect rules) ---
+
+    NAT_COMMENT_PREFIX = "netledger-redirect-"
+
+    async def add_nat_redirect(
+        self,
+        src_address: str,
+        to_address: str,
+        to_port: int = 80,
+        comment: str = "",
+    ) -> str:
+        """Create a dstnat rule that redirects HTTP traffic from src_address to a notification server.
+
+        Returns the .id of the created rule.
+        """
+        payload = {
+            "chain": "dstnat",
+            "action": "dst-nat",
+            "src-address": src_address,
+            "protocol": "tcp",
+            "dst-port": "80",
+            "to-addresses": to_address,
+            "to-ports": str(to_port),
+            "comment": comment,
+        }
+        resp = await self._request("PUT", "ip/firewall/nat", json=payload)
+        data = resp.json()
+        rule_id = data.get(".id", "")
+        logger.info("Created NAT redirect %s → %s:%s (id=%s)", src_address, to_address, to_port, rule_id)
+        return rule_id
+
+    async def remove_nat_redirect(self, comment: str) -> int:
+        """Remove NAT redirect rules matching the exact comment. Returns count removed."""
+        rules = await self._request("GET", "ip/firewall/nat")
+        removed = 0
+        for rule in rules.json():
+            if rule.get("comment") == comment:
+                await self._request("DELETE", f"ip/firewall/nat/{rule['.id']}")
+                logger.info("Removed NAT redirect rule %s (%s)", rule[".id"], comment)
+                removed += 1
+        return removed
+
+    async def remove_nat_redirects_by_prefix(self, prefix: str) -> int:
+        """Remove all NAT redirect rules whose comment starts with prefix. Returns count removed."""
+        rules = await self._request("GET", "ip/firewall/nat")
+        removed = 0
+        for rule in rules.json():
+            if (rule.get("comment") or "").startswith(prefix):
+                await self._request("DELETE", f"ip/firewall/nat/{rule['.id']}")
+                logger.info("Removed NAT redirect rule %s (%s)", rule[".id"], rule.get("comment"))
+                removed += 1
+        return removed
+
+    async def get_nat_redirects(self, prefix: str | None = None) -> list[dict]:
+        """List NAT redirect rules, optionally filtered by comment prefix."""
+        rules = await self._request("GET", "ip/firewall/nat")
+        result = []
+        for rule in rules.json():
+            comment = rule.get("comment", "")
+            if prefix is None or comment.startswith(prefix):
+                result.append(rule)
+        return result
 
 
 # --- Client Factory + Cache ---

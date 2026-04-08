@@ -74,6 +74,8 @@ export interface BillingSettingsType {
   billing_auto_generate: string
   billing_send_invoice_email: string
   billing_send_invoice_sms: string
+  nat_redirect_enabled: string
+  nat_redirect_ip: string
 }
 
 export function getBillingSettings() {

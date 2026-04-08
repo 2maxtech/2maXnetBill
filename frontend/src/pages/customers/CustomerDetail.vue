@@ -10,6 +10,9 @@ import {
   throttleCustomer,
   changePlan,
   getCustomerHistory,
+  getRedirectStatus,
+  addRedirect,
+  removeRedirect,
   type Customer,
   type HistoryEvent,
 } from '../../api/customers'
@@ -76,6 +79,10 @@ const deleteError = ref('')
 
 // Action loading states
 const actionLoading = ref(false)
+
+// NAT redirect status
+const redirectActive = ref(false)
+const redirectLoading = ref(false)
 
 // Computed
 const canDisconnect = computed(() => customer.value?.status === 'active')
@@ -183,6 +190,33 @@ async function handleThrottle() {
     console.error('Failed to throttle customer', e)
   } finally {
     actionLoading.value = false
+  }
+}
+
+// NAT Redirect
+async function fetchRedirectStatus() {
+  try {
+    const { data } = await getRedirectStatus(customerId)
+    redirectActive.value = data.active
+  } catch {
+    redirectActive.value = false
+  }
+}
+
+async function toggleRedirect() {
+  redirectLoading.value = true
+  try {
+    if (redirectActive.value) {
+      await removeRedirect(customerId)
+      redirectActive.value = false
+    } else {
+      await addRedirect(customerId)
+      redirectActive.value = true
+    }
+  } catch (e: any) {
+    console.error('Redirect toggle failed', e)
+  } finally {
+    redirectLoading.value = false
   }
 }
 
@@ -317,7 +351,7 @@ function formatCurrency(amount: number | string) {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchCustomer(), loadDropdowns(), fetchInvoices()])
+  await Promise.all([fetchCustomer(), loadDropdowns(), fetchInvoices(), fetchRedirectStatus()])
 })
 </script>
 
@@ -416,6 +450,23 @@ onMounted(async () => {
               <path d="M10 3.75a2 2 0 10-4 0 2 2 0 004 0zM17.25 4.5a.75.75 0 000-1.5h-5.5a.75.75 0 000 1.5h5.5zM5 3.75a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5a.75.75 0 01.75.75zM4.25 17a.75.75 0 000-1.5h-1.5a.75.75 0 000 1.5h1.5zM17.25 17a.75.75 0 000-1.5h-5.5a.75.75 0 000 1.5h5.5zM9 10a.75.75 0 01-.75.75h-5.5a.75.75 0 010-1.5h5.5A.75.75 0 019 10zM17.25 10.75a.75.75 0 000-1.5h-1.5a.75.75 0 000 1.5h1.5zM14 10a2 2 0 10-4 0 2 2 0 004 0zM10 16.25a2 2 0 10-4 0 2 2 0 004 0z" />
             </svg>
             Throttle
+          </button>
+
+          <button
+            @click="toggleRedirect"
+            :disabled="redirectLoading"
+            :class="[
+              'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50',
+              redirectActive
+                ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            ]"
+            :title="redirectActive ? 'Remove browser redirect' : 'Redirect browser to payment page'"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5zm7.47-.53a.75.75 0 011.06 0l3.75 3.75a.75.75 0 11-1.06 1.06L12.5 6.81v5.94a.75.75 0 01-1.5 0V6.81l-2.97 2.97a.75.75 0 11-1.06-1.06l3.75-3.75z" clip-rule="evenodd" />
+            </svg>
+            {{ redirectLoading ? '...' : (redirectActive ? 'Redirect On' : 'Browser Redirect') }}
           </button>
 
           <button

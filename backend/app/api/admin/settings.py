@@ -185,6 +185,8 @@ BILLING_KEYS = [
     "billing_auto_generate",
     "billing_send_invoice_email",
     "billing_send_invoice_sms",
+    "nat_redirect_enabled",
+    "nat_redirect_ip",
 ]
 
 BILLING_DEFAULTS = {
@@ -196,6 +198,8 @@ BILLING_DEFAULTS = {
     "billing_auto_generate": "true",
     "billing_send_invoice_email": "true",
     "billing_send_invoice_sms": "true",
+    "nat_redirect_enabled": "false",
+    "nat_redirect_ip": "",
 }
 
 
