@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useTheme } from '../composables/useTheme'
 
+const { isDark, toggle: toggleTheme } = useTheme()
 const activeStep = ref(0)
 
 const steps = [
@@ -230,7 +232,27 @@ const steps = [
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="min-h-screen bg-white dark:bg-gray-950">
+    <!-- Nav -->
+    <nav class="sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 z-50">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <router-link to="/" class="flex items-center gap-2">
+          <img src="/logo-2.png" class="w-7 h-7" alt="NetLedger" />
+          <span class="text-base font-bold text-gray-900 dark:text-white">NetLedger</span>
+        </router-link>
+        <div class="flex items-center gap-3">
+          <button @click="toggleTheme" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+            <svg v-if="isDark" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+            <svg v-else class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+          </button>
+          <router-link to="/" class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            Back to Home
+          </router-link>
+        </div>
+      </div>
+    </nav>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
     <div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Setup Guide</h1>
       <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Follow these steps to get your ISP billing system running</p>
@@ -344,6 +366,7 @@ const steps = [
           <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
         </router-link>
       </div>
+    </div>
     </div>
   </div>
 </template>

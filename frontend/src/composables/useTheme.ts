@@ -1,6 +1,6 @@
 import { ref, watchEffect } from 'vue'
 
-const isDark = ref(localStorage.getItem('theme') === 'dark')
+const isDark = ref(localStorage.getItem('theme') !== 'light')
 
 export function useTheme() {
   function toggle() {

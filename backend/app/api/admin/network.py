@@ -304,8 +304,9 @@ async def get_network_status(
             "connected": True,
             "identity": identity,
             "uptime": resources.get("uptime", ""),
-            "cpu_load": resources.get("cpu-load", ""),
-            "free_memory": resources.get("free-memory", ""),
+            "cpu_load": int(resources.get("cpu-load", 0)),
+            "free_memory": int(resources.get("free-memory", 0)),
+            "total_memory": int(resources.get("total-memory", 0)),
         }
     except Exception as e:
         return {"connected": False, "error": str(e)}

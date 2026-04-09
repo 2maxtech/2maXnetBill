@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { demoLogin } from '../api/auth'
+import { useTheme } from '../composables/useTheme'
 import ChatWidget from '../components/ChatWidget.vue'
 
 const router = useRouter()
+const { isDark, toggle: toggleTheme } = useTheme()
 const demoLoading = ref(false)
 
 onMounted(() => {
@@ -29,24 +31,28 @@ async function tryDemo() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-950 text-gray-100">
+  <div class="min-h-screen bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100">
     <!-- Navbar -->
-    <nav class="fixed top-0 w-full bg-gray-950/80 backdrop-blur-md border-b border-gray-800 z-50">
+    <nav class="fixed top-0 w-full bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 z-50">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
         <div class="flex items-center gap-2 sm:gap-3">
           <img src="/logo-2.png" class="w-7 h-7 sm:w-9 sm:h-9" alt="NetLedger" />
           <div class="flex flex-col -space-y-1">
-            <span class="text-base sm:text-xl font-bold text-white">NetLedger</span>
+            <span class="text-base sm:text-xl font-bold text-gray-900 dark:text-white">NetLedger</span>
             <span class="text-[9px] sm:text-[10px] text-gray-500 font-medium">by 2max.tech</span>
           </div>
         </div>
         <div class="flex items-center gap-2 sm:gap-3">
-          <router-link to="/self-hosted" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+          <router-link to="/self-hosted" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
             Self-Hosted
           </router-link>
-          <router-link to="/setup-guide" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+          <router-link to="/setup-guide" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
             Setup Guide
           </router-link>
+          <button @click="toggleTheme" class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors" title="Toggle theme">
+            <svg v-if="isDark" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+            <svg v-else class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+          </button>
           <router-link to="/register" class="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-primary border border-primary hover:bg-primary/10 rounded-lg transition-colors">
             Register
           </router-link>
@@ -65,18 +71,18 @@ async function tryDemo() {
             <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             Free During Beta
           </div>
-          <h1 class="text-3xl sm:text-5xl font-bold text-white leading-tight">
+          <h1 class="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white leading-tight">
             Manage your ISP<br />
             <span class="text-primary">with confidence</span>
           </h1>
-          <p class="text-base sm:text-lg text-gray-400 mt-4 sm:mt-6 leading-relaxed max-w-lg">
+          <p class="text-base sm:text-lg text-gray-600 dark:text-gray-400 mt-4 sm:mt-6 leading-relaxed max-w-lg">
             NetLedger is a complete billing, subscriber management, and MikroTik integration platform built for Internet Service Providers.
           </p>
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-6 sm:mt-8">
             <router-link to="/register" class="px-6 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 text-center">
               Join the Beta — It's Free
             </router-link>
-            <button @click="tryDemo" :disabled="demoLoading" class="px-6 py-3 text-sm font-semibold text-white border-2 border-white/30 hover:bg-white/10 rounded-xl transition-colors text-center disabled:opacity-50">
+            <button @click="tryDemo" :disabled="demoLoading" class="px-6 py-3 text-sm font-semibold text-white border-2 border-gray-300 dark:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors text-center disabled:opacity-50">
               {{ demoLoading ? 'Loading...' : 'Try Demo' }}
             </button>
           </div>
@@ -97,25 +103,25 @@ async function tryDemo() {
         </div>
         <!-- Hero visual -->
         <div class="relative hidden lg:block">
-          <div class="rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 p-6 shadow-2xl shadow-black/30">
-            <div class="rounded-xl bg-gray-800 border border-gray-700 p-5 space-y-4">
+          <div class="rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 p-6 shadow-2xl shadow-black/10 dark:shadow-black/30">
+            <div class="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-5 space-y-4">
               <div class="flex items-center gap-3 mb-4">
                 <img src="/logo-2.png" class="w-7 h-7" />
-                <span class="font-bold text-gray-200 text-sm">NetLedger Dashboard</span>
+                <span class="font-bold text-gray-700 dark:text-gray-200 text-sm">NetLedger Dashboard</span>
                 <span class="ml-auto px-2 py-0.5 text-[10px] font-medium bg-green-500/20 text-green-400 rounded-full">Live</span>
               </div>
               <div class="grid grid-cols-3 gap-3">
                 <div class="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3">
                   <p class="text-[10px] text-orange-400 font-medium">Subscribers</p>
-                  <p class="text-lg font-bold text-white">248</p>
+                  <p class="text-lg font-bold text-gray-900 dark:text-white">248</p>
                 </div>
                 <div class="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
                   <p class="text-[10px] text-green-400 font-medium">Active</p>
-                  <p class="text-lg font-bold text-white">231</p>
+                  <p class="text-lg font-bold text-gray-900 dark:text-white">231</p>
                 </div>
                 <div class="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3">
                   <p class="text-[10px] text-blue-400 font-medium">Online</p>
-                  <p class="text-lg font-bold text-white">189</p>
+                  <p class="text-lg font-bold text-gray-900 dark:text-white">189</p>
                 </div>
               </div>
               <div class="flex gap-2">
@@ -130,11 +136,11 @@ async function tryDemo() {
                 </div>
                 <div class="flex items-center justify-between text-xs">
                   <span class="text-gray-400">MRR</span>
-                  <span class="text-white font-semibold">&#8369;186,752</span>
+                  <span class="text-gray-900 dark:text-white font-semibold">&#8369;186,752</span>
                 </div>
                 <div class="flex items-center justify-between text-xs">
                   <span class="text-gray-400">Collection Rate</span>
-                  <span class="text-white font-semibold">94.2%</span>
+                  <span class="text-gray-900 dark:text-white font-semibold">94.2%</span>
                 </div>
               </div>
             </div>
@@ -146,20 +152,20 @@ async function tryDemo() {
     </section>
 
     <!-- Features -->
-    <section id="features" class="py-12 sm:py-20 px-4 sm:px-6 bg-gray-900/50">
+    <section id="features" class="py-12 sm:py-20 px-4 sm:px-6 bg-gray-50 dark:bg-gray-900/50">
       <div class="max-w-6xl mx-auto">
         <div class="text-center mb-10 sm:mb-14">
-          <h2 class="text-2xl sm:text-3xl font-bold text-white">Everything you need to run your ISP</h2>
-          <p class="text-gray-400 mt-3 max-w-2xl mx-auto text-sm sm:text-base">From subscriber provisioning to billing automation, NetLedger handles it all with native MikroTik integration.</p>
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Everything you need to run your ISP</h2>
+          <p class="text-gray-600 dark:text-gray-400 mt-3 max-w-2xl mx-auto text-sm sm:text-base">From subscriber provisioning to billing automation, NetLedger handles it all with native MikroTik integration.</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <!-- Feature cards -->
-          <div v-for="feature in features" :key="feature.title" class="rounded-xl bg-gray-800/50 border border-gray-700/50 p-6 hover:bg-gray-800 hover:-translate-y-0.5 transition-all duration-200">
-            <div :class="['w-10 h-10 rounded-lg flex items-center justify-center mb-4', feature.bg_dark]">
-              <svg class="w-5 h-5" :class="feature.icon_color_dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" v-html="feature.icon" />
+          <div v-for="feature in features" :key="feature.title" class="rounded-xl bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 p-6 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-sm dark:shadow-none hover:-translate-y-0.5 transition-all duration-200">
+            <div :class="['w-10 h-10 rounded-lg flex items-center justify-center mb-4', isDark ? feature.bg_dark : feature.bg]">
+              <svg class="w-5 h-5" :class="isDark ? feature.icon_color_dark : feature.icon_color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" v-html="feature.icon" />
             </div>
-            <h3 class="font-semibold text-white mb-2">{{ feature.title }}</h3>
-            <p class="text-sm text-gray-400 leading-relaxed">{{ feature.desc }}</p>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">{{ feature.title }}</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{{ feature.desc }}</p>
           </div>
         </div>
       </div>
@@ -169,16 +175,16 @@ async function tryDemo() {
     <section class="py-12 sm:py-20 px-4 sm:px-6">
       <div class="max-w-6xl mx-auto">
         <div class="text-center mb-10 sm:mb-14">
-          <h2 class="text-2xl sm:text-3xl font-bold text-white">How it works</h2>
-          <p class="text-gray-400 mt-3">Get up and running in minutes</p>
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">How it works</h2>
+          <p class="text-gray-600 dark:text-gray-400 mt-3">Get up and running in minutes</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div v-for="(step, i) in steps" :key="i" class="text-center">
             <div class="w-12 h-12 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center mx-auto mb-4">
               {{ i + 1 }}
             </div>
-            <h3 class="font-semibold text-white mb-2">{{ step.title }}</h3>
-            <p class="text-sm text-gray-400">{{ step.desc }}</p>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">{{ step.title }}</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400">{{ step.desc }}</p>
           </div>
         </div>
       </div>
@@ -188,8 +194,8 @@ async function tryDemo() {
     <section class="py-12 sm:py-20 px-4 sm:px-6">
       <div class="max-w-6xl mx-auto">
         <div class="text-center mb-10 sm:mb-14">
-          <h2 class="text-2xl sm:text-3xl font-bold text-white">Choose your deployment</h2>
-          <p class="text-gray-400 mt-3 text-sm sm:text-base">Use our cloud platform or install on your own server</p>
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Choose your deployment</h2>
+          <p class="text-gray-600 dark:text-gray-400 mt-3 text-sm sm:text-base">Use our cloud platform or install on your own server</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           <div class="rounded-xl border-2 border-primary bg-primary/5 p-8">
@@ -197,9 +203,9 @@ async function tryDemo() {
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary text-white">Recommended</span>
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Free Beta</span>
             </div>
-            <h3 class="text-xl font-bold text-white">Cloud (SaaS)</h3>
-            <p class="text-sm text-gray-400 mt-2">We host everything. Sign up and start managing your ISP — completely free during the beta period.</p>
-            <ul class="mt-5 space-y-2.5 text-sm text-gray-300">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Cloud (SaaS)</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">We host everything. Sign up and start managing your ISP — completely free during the beta period.</p>
+            <ul class="mt-5 space-y-2.5 text-sm text-gray-700 dark:text-gray-300">
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> No server to maintain</li>
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Automatic updates</li>
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Secure VPN tunnel to your router</li>
@@ -212,9 +218,9 @@ async function tryDemo() {
           <div class="rounded-xl border border-primary/30 bg-primary/5 p-8 relative overflow-hidden">
             <div class="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-6 py-1 rotate-45 translate-x-6 translate-y-3">LIVE</div>
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 mb-4">Available Now</span>
-            <h3 class="text-xl font-bold text-white">On-Premise (Docker)</h3>
-            <p class="text-sm text-gray-400 mt-2">Install on your own server. Full control, your data stays on your network.</p>
-            <ul class="mt-5 space-y-2.5 text-sm text-gray-300">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">On-Premise (Docker)</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Install on your own server. Full control, your data stays on your network.</p>
+            <ul class="mt-5 space-y-2.5 text-sm text-gray-700 dark:text-gray-300">
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Router on same LAN — no VPN needed</li>
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> Data stays on your network</li>
               <li class="flex items-start gap-2"><svg class="w-4 h-4 text-green-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> One-command Docker install</li>
@@ -230,15 +236,15 @@ async function tryDemo() {
     </section>
 
     <!-- CTA -->
-    <section class="py-12 sm:py-20 px-4 sm:px-6 bg-gradient-to-br from-sidebar to-gray-900">
+    <section class="py-12 sm:py-20 px-4 sm:px-6 bg-gradient-to-br from-gray-100 to-gray-50 dark:from-sidebar dark:to-gray-900">
       <div class="max-w-3xl mx-auto text-center">
-        <h2 class="text-2xl sm:text-3xl font-bold text-white">Ready to streamline your ISP operations?</h2>
-        <p class="text-gray-400 mt-4 text-base sm:text-lg">Join the beta and get full access to every feature — completely free while we're in beta testing.</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Ready to streamline your ISP operations?</h2>
+        <p class="text-gray-600 dark:text-gray-400 mt-4 text-base sm:text-lg">Join the beta and get full access to every feature — completely free while we're in beta testing.</p>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 mt-8">
           <router-link to="/register" class="px-8 py-3 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 text-center">
             Join the Beta — It's Free
           </router-link>
-          <button @click="tryDemo" :disabled="demoLoading" class="px-8 py-3 text-sm font-semibold text-white border-2 border-white/30 hover:bg-white/10 rounded-xl transition-colors text-center disabled:opacity-50">
+          <button @click="tryDemo" :disabled="demoLoading" class="px-8 py-3 text-sm font-semibold text-white border-2 border-gray-300 dark:border-white/30 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors text-center disabled:opacity-50">
             {{ demoLoading ? 'Loading...' : 'Try Demo' }}
           </button>
         </div>
@@ -246,11 +252,11 @@ async function tryDemo() {
     </section>
 
     <!-- Footer -->
-    <footer class="py-8 sm:py-10 px-4 sm:px-6 border-t border-gray-800">
+    <footer class="py-8 sm:py-10 px-4 sm:px-6 border-t border-gray-200 dark:border-gray-800">
       <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <img src="/logo-2.png" class="w-6 h-6" />
-          <span class="text-sm font-semibold text-gray-300">NetLedger</span>
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">NetLedger</span>
           <span class="text-sm text-gray-500">&mdash; by 2max Tech</span>
         </div>
         <p class="text-sm text-gray-500">&copy; {{ new Date().getFullYear() }} 2max Tech. All rights reserved.</p>
