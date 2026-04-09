@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.tenant import get_tenant_id
+from app.models.customer import Customer
 from app.models.ticket import Ticket, TicketMessage, TicketPriority, TicketStatus
 from app.models.user import User
 from app.schemas.ticket import (
@@ -90,7 +91,22 @@ async def get_ticket(
     ticket = result.scalar_one_or_none()
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    return ticket
+
+    # Resolve sender names for messages
+    sender_ids = {m.sender_id for m in ticket.messages}
+    name_map: dict[uuid.UUID, str] = {}
+    if sender_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(sender_ids)))
+        for u in users_result.scalars().all():
+            name_map[u.id] = u.username
+        customers_result = await db.execute(select(Customer).where(Customer.id.in_(sender_ids)))
+        for c in customers_result.scalars().all():
+            name_map[c.id] = c.full_name
+
+    resp = TicketResponse.model_validate(ticket)
+    for msg in resp.messages:
+        msg.sender_name = name_map.get(msg.sender_id)
+    return resp
 
 
 @router.put("/{ticket_id}", response_model=TicketResponse)

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.models.ticket import TicketPriority, TicketStatus
 
@@ -28,6 +28,7 @@ class TicketMessageResponse(BaseModel):
     ticket_id: uuid.UUID
     sender_type: str
     sender_id: uuid.UUID
+    sender_name: str | None = None
     message: str
     created_at: datetime
 
@@ -37,6 +38,7 @@ class TicketMessageResponse(BaseModel):
 class TicketResponse(BaseModel):
     id: uuid.UUID
     customer_id: uuid.UUID
+    customer_name: str | None = None
     subject: str
     status: TicketStatus
     priority: TicketPriority
@@ -46,3 +48,11 @@ class TicketResponse(BaseModel):
     messages: list[TicketMessageResponse] = []
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _resolve_customer_name(cls, data, handler):
+        obj = handler(data)
+        if hasattr(data, 'customer') and data.customer:
+            obj.customer_name = data.customer.full_name
+        return obj

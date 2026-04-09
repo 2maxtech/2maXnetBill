@@ -169,7 +169,7 @@ onMounted(loadTicket)
                           : 'bg-gray-200 text-gray-600'
                       ]"
                     >
-                      {{ msg.sender_type }}
+                      {{ msg.sender_name || msg.sender_type }}
                     </span>
                     <span
                       :class="[
@@ -218,7 +218,7 @@ onMounted(loadTicket)
             <dl class="space-y-3">
               <div class="flex justify-between">
                 <dt class="text-sm text-gray-500">Customer</dt>
-                <dd class="text-sm font-medium text-gray-900">{{ ticket.customer_id.substring(0, 8) }}</dd>
+                <dd class="text-sm font-medium text-gray-900">{{ ticket.customer_name || ticket.customer_id.substring(0, 8) }}</dd>
               </div>
               <div class="flex justify-between">
                 <dt class="text-sm text-gray-500">Status</dt>
